@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no">
+    <title>Cosmic Idle Clicker</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <nav class="top-navigation">
+        <div class="nav-brand">COSMIC REACTOR v2.0</div>
+        <div class="nav-buttons">
+            <button class="nav-btn btn-ach" id="open-ach-btn">ACHIEVEMENTS (<span id="ach-count">0/200</span>)</button>
+            <button class="nav-btn btn-gacha" id="open-gacha-btn">PLANETEN GACHA</button>
+            <button class="nav-btn btn-rebirth" id="open-rebirth-btn">REBIRTH (<span id="star-cores-count">0</span>)</button>
+        </div>
+    </nav>
+
+    <div id="gacha-flash-overlay"></div>
+
+    <div id="cinematic-blackout">
+        <div id="cinematic-countdown">SUCHE ANOMALIE...</div>
+        <div id="cinematic-beam"></div>
+        <div id="cinematic-blast"></div>
+        <div id="cinematic-particles"></div>
+        <div id="cinematic-wormhole"></div>
+        <div id="cinematic-rings-container"></div>
+        <div id="cinematic-glitch-lines"></div>
+        <div id="cinematic-dna"></div>
+    </div>
+
+    <div class="game-container">
+        <div class="column">
+            <div class="box-header">Energie-Produktion</div>
+            <div class="shop-list" id="dynamic-shop-list"></div>
+        </div>
+
+        <div class="column reaktor-section">
+            <div class="score-board">
+                <div class="energy-subtitle">Gespeicherte Plasma-Energie</div>
+                <div class="energy-title" id="energy-count">0</div>
+            </div>
+            <div class="planet-container">
+                <button id="planet-btn"></button>
+            </div>
+            <div style="width:100%;display:flex;flex-direction:column;gap:6px;">
+                <div class="stat-badge eps-color">EPS: <span id="eps-count">0</span></div>
+                <div class="stat-badge click-color">Klick: +<span id="click-power-count">1</span></div>
+            </div>
+            <div class="log-box">
+                <p class="log-text" id="system-log">> Reaktor-Kerne stabil. Bereit für Spaltung.</p>
+            </div>
+        </div>
+
+        <div class="column">
+            <div class="box-header">Forschungs-Zentrum</div>
+            <div class="tech-list" id="dynamic-tech-list"></div>
+        </div>
+    </div>
+
+    <!-- ACHIEVEMENT SCREEN -->
+    <div class="modal-screen" id="ach-screen">
+        <div class="modal-content-wrapper">
+            <div class="modal-header">
+                <h2 class="text-glow-teal">✨ ACHIEVEMENTS (200)</h2>
+                <button class="close-btn" id="close-ach-btn">X</button>
+            </div>
+            <div id="ach-constellation"></div>
+            <div id="ach-info-box" style="background:rgba(0,0,0,0.85);border:1px solid rgba(0,240,255,0.2);padding:8px;border-radius:8px;text-align:center;font-family:'Orbitron';font-size:.72rem;color:#94a3b8;">
+                <span id="ach-info-text">Bewege den Mauszeiger über einen Stern für Details.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- REBIRTH SCREEN -->
+    <div class="modal-screen" id="rebirth-screen">
+        <div class="modal-content-wrapper">
+            <div class="modal-header">
+                <h2 class="text-glow-purple">KOSMISCHER REBIRTH</h2>
+                <button class="close-btn" id="close-rebirth-btn">X</button>
+            </div>
+            <div class="modal-body-panel">
+                <p>Das Universum kollabieren lassen? Du verlierst alle Gebäude, Upgrades und Energie.</p>
+                <p style="margin:8px 0;font-weight:bold;color:#ffb703;">Du erhältst: <span id="pending-cores">0</span> Sternen-Kerne.</p>
+                <button class="action-trigger-btn target-rebirth" id="trigger-rebirth-btn">URKNALL AUSLÖSEN</button>
+            </div>
+            <div class="box-header" style="margin-top:15px;">Sternen-Konstellation (8 Pfade)</div>
+            <div class="constellation-container"></div>
+            <div id="star-info-box" style="background:rgba(0,0,0,0.85);border:1px solid rgba(0,240,255,0.2);padding:8px;border-radius:8px;text-align:center;font-family:'Orbitron';font-size:.72rem;color:#94a3b8;">
+                <span id="star-info-text">Bewege den Mauszeiger über einen Stern für Details.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- GACHA SCREEN -->
+    <div class="modal-screen color-gacha-bg" id="gacha-screen">
+        <div class="modal-content-wrapper">
+            <div class="modal-header">
+                <h2 class="text-glow-gold">PLANETARE SINGULARITÄT</h2>
+                <button class="close-btn" id="close-gacha-btn">X</button>
+            </div>
+            <div class="equip-outer-bar">
+                <div style="font-family:'Orbitron';font-size:.75rem;color:#94a3b8;">AKTIVE ORBITS (KLICK-BONUS STACKT)</div>
+                <div id="equip-slots-container"></div>
+            </div>
+            <div class="banner-tabs-container">
+                <button class="banner-tab tab-active" data-banner="1">Ur-Nebel (B1)</button>
+                <button class="banner-tab" data-banner="2">Supernova (B2)</button>
+                <button class="banner-tab" data-banner="3">Ereignishorizont (B3)</button>
+                <button class="banner-tab" data-banner="4">Quanten-Spalt (B4)</button>
+                <button class="banner-tab" data-banner="5">Singularität (B5)</button>
+                <button class="banner-tab banner-tab-divine" data-banner="6">⭐ Göttlicher Abgrund (B6)</button>
+            </div>
+            <div class="gacha-split-view">
+                <div id="gacha-main-stage">
+                    <div style="text-align:center;">
+                        <div id="current-banner-title" style="font-family:'Orbitron';font-weight:900;color:#fff;">Ur-Nebel Banner</div>
+                        <div id="current-banner-desc" style="font-size:.7rem;color:#94a3b8;">Common bis Rare.</div>
+                    </div>
+                    <div id="gacha-portal" class="portal-idle"><div id="gacha-orb"></div></div>
+                    <div style="text-align:center;min-height:50px;">
+                        <div id="gacha-reveal-text"></div>
+                        <div id="gacha-rarity-badge" style="display:inline-block;"></div>
+                    </div>
+                    <button class="ultra-roll-btn" id="roll-gacha-btn">ANOMALIE ERNTEN (<span id="gacha-cost-display">150.000</span> E)</button>
+                </div>
+                <div class="gacha-inventory-box">
+                    <div style="font-family:'Orbitron';font-size:.8rem;margin-bottom:8px;border-bottom:1px solid #1e3a8a;padding-bottom:4px;text-align:center;">
+                        GEZOGENE PLANETEN (<span id="inventory-count">0</span>)
+                    </div>
+                    <div id="gacha-inventory"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DEV PANEL -->
+    <div class="dev-panel" id="dev-menu">
+        <p class="dev-title">MATRIX CHEAT MENU</p>
+        <button class="dev-btn" id="cheat-energy-1m">+1 Mio Plasma</button>
+        <button class="dev-btn" id="cheat-energy-inf">+INF POWER</button>
+        <button class="dev-btn" id="cheat-reset">SPEICHER LÖSCHEN</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
