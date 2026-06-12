@@ -1666,9 +1666,4 @@ document.addEventListener('DOMContentLoaded',()=>{
         saveGame(); updateDisplay(); checkAchievements();
     },1000);
 
-    // Dev menu
-    window.onkeydown=(e)=>{if(e.key==='d'||e.key==='D'){const dm=getEl('dev-menu');if(dm)dm.style.display=(dm.style.display==='flex')?'none':'flex';}};
-    if(getEl('cheat-energy-1m'))getEl('cheat-energy-1m').onclick=()=>{energy+=1000000;updateDisplay();};
-    if(getEl('cheat-energy-inf'))getEl('cheat-energy-inf').onclick=()=>{energy+=1e75;updateDisplay();};
-    if(getEl('cheat-reset'))getEl('cheat-reset').onclick=hardReset;
 });
