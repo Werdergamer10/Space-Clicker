@@ -1,145 +1,190 @@
 // ══════════════════════════════════════════════════════════════════
-// GAME STATE
+// COSMIC REACTOR v3.0
 // ══════════════════════════════════════════════════════════════════
 let energy=0, eps=0, clickPower=1, starCores=0;
 let purchasedStars=[], activeBanner=1, isRolling=false;
-let inventory=[], equippedPlanets=[null,null,null];
+let activeGachaMode='click';
+let inventory=[], equippedPlanets=[null,null,null,null,null,null];
 let totalClicks=0, totalEnergy=0, totalRolls=0;
 let unlockedAch=[], achNotifQueue=[];
-let rebirthCount=0;
+let rebirthCount=0, totalPlayTime=0;
+let sessionStartTime=Date.now();
 
-const bannerCosts={1:150000,2:95000000,3:550000000000,4:1.5e15,5:8.5e18,6:5e24};
+const BASE_BANNER_COSTS={1:120000,2:70000000,3:400000000000,4:1e15,5:6e18,6:3e24};
+const BASE_BANNER_COSTS_B={1:150000,2:90000000,3:500000000000,4:1.3e15,5:8e18,6:4e24};
+const bannerCosts={...BASE_BANNER_COSTS};
+const bannerCostsBuilding={...BASE_BANNER_COSTS_B};
 
-// ── PLANET FACTORY ────────────────────────────────────────────────
-const P=(id,n,r,b,m,c,t)=>({id,name:n,rarity:r,banner:b,multiplier:m,color:c,type:t});
+// multiplier = multiplicative bonus (×X) applied to click or EPS
+const P=(id,n,r,b,m,c,t,gt='click')=>({id,name:n,rarity:r,banner:b,multiplier:m,color:c,type:t,gachaType:gt});
+const Pb=(id,n,r,b,m,c,t)=>P(id,n,r,b,m,c,t,'building');
 
 const planetPool=[
-// ── COMMON ─────────────────────────────────────────────────────── (30)
-P('c01','Staubkorn',        'common',1,15,  '#8B7355','rocky'),
-P('c02','Kies-Mond',        'common',1,20,  '#708090','rocky'),
-P('c03','Sandfels',         'common',1,28,  '#C4A882','desert'),
-P('c04','Eis-Splitter',     'common',1,35,  '#B0C4DE','ice'),
-P('c05','Sumpf-Ball',       'common',1,22,  '#4A5240','toxic'),
-P('c06','Roststein',        'common',1,45,  '#8B4040','rocky'),
-P('c07','Nebelball',        'common',1,38,  '#7090B0','gas'),
-P('c08','Kohlenfels',       'common',1,18,  '#2D2D2D','rocky'),
-P('c09','Sandwüste',        'common',1,55,  '#D4B483','desert'),
-P('c10','Tonfels',          'common',1,42,  '#A05030','rocky'),
-P('c11','Grauer Zwerg',     'common',2,500, '#808080','rocky'),
-P('c12','Eiswüste',         'common',2,650, '#C0D8E0','ice'),
-P('c13','Salzsee-Welt',     'common',2,720, '#D8D8D8','ocean'),
-P('c14','Steinhorn',        'common',2,800, '#604830','rocky'),
-P('c15','Tundra-Welt',      'common',2,950, '#5A7080','ice'),
-P('c16','Asche-Ball',       'common',2,1100,'#505050','volcanic'),
-P('c17','Schwefel-Mond',    'common',2,1300,'#C0A020','toxic'),
-P('c18','Granit-Riese',     'common',2,1500,'#909090','rocky'),
-P('c19','Moosfeld',         'common',2,1800,'#3A5030','forest'),
-P('c20','Kalk-Mond',        'common',2,2000,'#D0C8B8','rocky'),
-P('c21','Lava-Splitter',    'common',3,8000,'#702020','volcanic'),
-P('c22','Basalt-Ball',      'common',3,10000,'#404040','rocky'),
-P('c23','Morast-Welt',      'common',3,12000,'#404830','toxic'),
-P('c24','Quarz-Mond',       'common',3,15000,'#E0E0F0','crystal'),
-P('c25','Kreide-Welt',      'common',3,18000,'#E8E4D8','rocky'),
-P('c26','Eisberg-Mond',     'common',3,22000,'#A0C8E0','ice'),
-P('c27','Dunkel-Kiesel',    'common',3,25000,'#383838','rocky'),
-P('c28','Schlick-Welt',     'common',3,30000,'#506070','ocean'),
-P('c29','Braun-Zwerg',      'common',3,40000,'#7A4520','rocky'),
-P('c30','Fossil-Ball',      'common',3,50000,'#8A7060','rocky'),
-// ── RARE ──────────────────────────────────────────────────────── (25)
-P('r01','Azur-Ozean',       'rare',1,200,  '#0080FF','ocean'),
-P('r02','Smaragd-Welt',     'rare',1,280,  '#00A060','forest'),
-P('r03','Rubin-Fels',       'rare',1,350,  '#C02040','crystal'),
-P('r04','Saphir-Mond',      'rare',1,420,  '#2040C0','crystal'),
-P('r05','Türkis-Welt',      'rare',2,3000, '#20C0A0','ocean'),
-P('r06','Amethyst-Fels',    'rare',2,4000, '#8040C0','crystal'),
-P('r07','Bernstein-Ball',   'rare',2,5500, '#D08020','volcanic'),
-P('r08','Neon-Wüste',       'rare',2,7000, '#FF4000','desert'),
-P('r09','Korallen-Welt',    'rare',2,8500, '#FF6060','ocean'),
-P('r10','Jade-Mond',        'rare',2,10000,'#00C070','forest'),
-P('r11','Kupfer-Riese',     'rare',3,50000,'#C06030','rocky'),
-P('r12','Phosphor-Ball',    'rare',3,65000,'#40FF40','toxic'),
-P('r13','Titan-Fels',       'rare',3,80000,'#80A0C0','rocky'),
-P('r14','Zirkon-Mond',      'rare',3,100000,'#C0A0E0','crystal'),
-P('r15','Gold-Staub',       'rare',3,130000,'#C0A000','void'),
-P('r16','Opal-Kugel',       'rare',3,160000,'#C0D0E0','prismatic'),
-P('r17','Citrin-Mond',      'rare',4,800000,'#D0C000','crystal'),
-P('r18','Malachit-Welt',    'rare',4,1100000,'#20A040','crystal'),
-P('r19','Topas-Mond',       'rare',4,1400000,'#A0C060','crystal'),
-P('r20','Lazur-Ball',       'rare',4,1800000,'#4080FF','gas'),
-P('r21','Carneol-Fels',     'rare',4,2200000,'#C04000','crystal'),
-P('r22','Turmalin-Welt',    'rare',4,2800000,'#E040A0','prismatic'),
-P('r23','Fluorit-Mond',     'rare',5,5e7,  '#80FF80','crystal'),
-P('r24','Onyx-Ball',        'rare',5,7e7,  '#202030','void'),
-P('r25','Aquamarin-Welt',   'rare',5,1e8,  '#60E0D0','ocean'),
-// ── EPIC ──────────────────────────────────────────────────────── (20)
-P('e01','Quanten-Zwilling', 'epic',2,300000,'#6040FF','quantum'),
-P('e02','Plasma-Koloss',    'epic',2,450000,'#FF6000','stellar'),
-P('e03','Dunkel-Magie',     'epic',2,600000,'#200040','shadow'),
-P('e04','Ionensturm',       'epic',3,4000000,'#0040FF','gas'),
-P('e05','Neutronen-Ball',   'epic',3,6000000,'#102030','void'),
-P('e06','Magma-Riese',      'epic',3,8000000,'#FF3000','volcanic'),
-P('e07','Kristall-Nebel',   'epic',3,12000000,'#C040C0','crystal'),
-P('e08','Pulsars-Echo',     'epic',3,18000000,'#A0C0FF','stellar'),
-P('e09','Tachyon-Welt',     'epic',3,25000000,'#00A0FF','quantum'),
-P('e10','Schattenfels',     'epic',4,80000000,'#100020','shadow'),
-P('e11','Antigrav-Mond',    'epic',4,120000000,'#6000C0','quantum'),
-P('e12','Spektral-Ball',    'epic',4,180000000,'#FF0080','prismatic'),
-P('e13','Nullpunkt-Riese',  'epic',4,250000000,'#001030','void'),
-P('e14','Zeitriss-Welt',    'epic',4,350000000,'#0080C0','quantum'),
-P('e15','Graviton-Kern',    'epic',4,500000000,'#080818','void'),
-P('e16','Elementar-Ozean',  'epic',4,700000000,'#0040A0','ocean'),
-P('e17','Multiversum-Mond', 'epic',5,3e9,  '#FF4080','quantum'),
-P('e18','Resonanz-Koloss',  'epic',5,5e9,  '#2080FF','gas'),
-P('e19','Chroma-Riese',     'epic',5,8e9,  '#FF8040','prismatic'),
-P('e20','Aether-Koloss',    'epic',5,1.2e10,'#0010A0','void'),
-// ── MYTHIC ────────────────────────────────────────────────────── (15)
-P('m01','Urknall-Kern',     'mythic',3,2e11,  '#FFFFA0','stellar'),
-P('m02','Schwarzloch-Ring', 'mythic',3,5e11,  '#050505','void'),
-P('m03','Supernova-Fragment','mythic',3,9e11, '#FF2000','stellar'),
-P('m04','Wormhole-Zentrum', 'mythic',4,3e12, '#4000FF','quantum'),
-P('m05','Neutronenstern',   'mythic',4,6e12, '#80C0FF','stellar'),
-P('m06','Quasar-Fragment',  'mythic',4,1.2e13,'#FF8000','stellar'),
-P('m07','Anti-Materie-Ball','mythic',4,2.5e13,'#FF00FF','quantum'),
-P('m08','Dimension-Riss',   'mythic',4,5e13, '#8000FF','quantum'),
-P('m09','Kosmos-Herz',      'mythic',4,8e13, '#FF4000','stellar'),
-P('m10','Hyper-Riese',      'mythic',5,2e14, '#FF6000','gas'),
-P('m11','Singularität-Echo','mythic',5,5e14, '#020208','void'),
-P('m12','Galaxis-Kern',     'mythic',5,1.2e15,'#FFC000','stellar'),
-P('m13','Urmaterie-Ball',   'mythic',5,3e15, '#C08000','stellar'),
-P('m14','Zeitkern',         'mythic',5,7e15, '#FFD000','quantum'),
-P('m15','Anti-Kosmos',      'mythic',5,1.5e16,'#0000FF','void'),
-// ── SECRET ────────────────────────────────────────────────────── (15)
-P('s01','Schöpfungs-Funke', 'secret',4,5e16, '#FFE040','stellar'),
-P('s02','Realitäts-Kern',   'secret',4,1.2e17,'#0000FF','quantum'),
-P('s03','Kosmisches-Herz',  'secret',4,3e17, '#FF0040','stellar'),
-P('s04','Ewigkeits-Mond',   'secret',5,8e17, '#FFC080','divine'),
-P('s05','Manifestations-Kern','secret',5,2e18,'#FF8040','divine'),
-P('s06','Urlichts-Fragment','secret',5,5e18, '#FFFF80','stellar'),
-P('s07','Bewusstsein-Sphäre','secret',5,1e19,'#200060','void'),
-P('s08','Omega-Partikel',   'secret',5,3e19, '#010105','void'),
-P('s09','Transzendenz-Kern','secret',5,8e19, '#FF60FF','quantum'),
-P('s10','Schicksal-Stern',  'secret',5,2e20, '#FFA000','stellar'),
-P('s11','Leerstrom-Ball',   'secret',6,8e20, '#050015','void'),
-P('s12','Ursound-Kugel',    'secret',6,2e21, '#4060FF','quantum'),
-P('s13','Nexus-Kern',       'secret',6,6e21, '#6000A0','shadow'),
-P('s14','Absolut-Null',     'secret',6,1.5e22,'#A0D8FF','ice'),
-P('s15','OMEGA-SINGULARITÄT','secret',6,5e22,'#FFFFFF','void'),
-// ── GÖTTLICH ──────────────────────────────────────────────────── (15)
-P('g01','Göttliches Auge',     'divine',5,5e23, '#FFD700','divine'),
-P('g02','Schöpfer-Hand',       'divine',5,1.5e24,'#FFFFC0','divine'),
-P('g03','Ewiger Wille',        'divine',5,4e24, '#FFC000','divine'),
-P('g04','Himmels-Zitadelle',   'divine',6,1e25, '#E0E8FF','divine'),
-P('g05','Göttlicher Funke',    'divine',6,3e25, '#FFE000','divine'),
-P('g06','Urwesen-Form',        'divine',6,8e25, '#FF8000','divine'),
-P('g07','Schöpfungs-Akt',      'divine',6,2e26, '#FFFFFF','divine'),
-P('g08','Paradiesis-Kern',     'divine',6,6e26, '#FFD080','divine'),
-P('g09','Trans-Wesen',         'divine',6,1.5e27,'#C080FF','quantum'),
-P('g10','Kosmische Gottheit',  'divine',6,4e27, '#FFCC00','divine'),
-P('g11','Jenseits-Licht',      'divine',6,1e28, '#FFF8E0','divine'),
-P('g12','Universums-Seele',    'divine',6,3e28, '#80C0FF','stellar'),
-P('g13','Schöpfungs-Wille',    'divine',6,8e28, '#FFE040','divine'),
-P('g14','Göttliche Vollendung','divine',6,2e29, '#FFD700','divine'),
-P('g15','URPRINZIP',           'divine',6,1e30, '#FFFFFF','divine'),
+P('c01','Staubkorn',        'common',1,1.04,'#8B7355','rocky'),
+P('c02','Kies-Mond',        'common',1,1.05,'#708090','rocky'),
+P('c03','Sandfels',         'common',1,1.06,'#C4A882','desert'),
+P('c04','Eis-Splitter',     'common',1,1.07,'#B0C4DE','ice'),
+P('c05','Sumpf-Ball',       'common',1,1.05,'#4A5240','toxic'),
+P('c06','Roststein',        'common',1,1.08,'#8B4040','rocky'),
+P('c07','Nebelball',        'common',1,1.07,'#7090B0','gas'),
+P('c08','Kohlenfels',       'common',1,1.04,'#2D2D2D','rocky'),
+P('c09','Sandwüste',        'common',1,1.09,'#D4B483','desert'),
+P('c10','Tonfels',          'common',1,1.08,'#A05030','rocky'),
+P('c11','Grauer Zwerg',     'common',2,1.12,'#808080','rocky'),
+P('c12','Eiswüste',         'common',2,1.15,'#C0D8E0','ice'),
+P('c13','Salzebene',        'common',2,1.18,'#D8D8D8','ocean'),
+P('c14','Steinhorn',        'common',2,1.20,'#604830','rocky'),
+P('c15','Tundra-Welt',      'common',2,1.25,'#5A7080','ice'),
+P('c16','Asche-Ball',       'common',3,1.30,'#505050','volcanic'),
+P('c17','Schwefel-Mond',    'common',3,1.35,'#C0A020','toxic'),
+P('c18','Granit-Riese',     'common',3,1.40,'#909090','rocky'),
+P('c19','Moosfeld',         'common',3,1.45,'#3A5030','forest'),
+P('c20','Fossil-Ball',      'common',3,1.50,'#8A7060','rocky'),
+P('r01','Azur-Ozean',       'rare',1,1.80,'#0080FF','ocean'),
+P('r02','Smaragd-Welt',     'rare',1,2.00,'#00A060','forest'),
+P('r03','Rubin-Fels',       'rare',1,2.20,'#C02040','crystal'),
+P('r04','Saphir-Mond',      'rare',1,2.50,'#2040C0','crystal'),
+P('r05','Türkis-Welt',      'rare',2,3.00,'#20C0A0','ocean'),
+P('r06','Amethyst-Fels',    'rare',2,3.50,'#8040C0','crystal'),
+P('r07','Bernstein-Ball',   'rare',2,4.00,'#D08020','volcanic'),
+P('r08','Neon-Wüste',       'rare',2,4.50,'#FF4000','desert'),
+P('r09','Korallen-Welt',    'rare',2,5.00,'#FF6060','ocean'),
+P('r10','Jade-Mond',        'rare',2,5.50,'#00C070','forest'),
+P('r11','Kupfer-Riese',     'rare',3,7.00,'#C06030','rocky'),
+P('r12','Phosphor-Ball',    'rare',3,8.50,'#40FF40','toxic'),
+P('r13','Titan-Fels',       'rare',3,10.0,'#80A0C0','rocky'),
+P('r14','Zirkon-Mond',      'rare',3,12.0,'#C0A0E0','crystal'),
+P('r15','Opal-Kugel',       'rare',3,15.0,'#C0D0E0','prismatic'),
+P('r16','Citrin-Mond',      'rare',4,20.0,'#D0C000','crystal'),
+P('r17','Malachit-Welt',    'rare',4,25.0,'#20A040','crystal'),
+P('r18','Turmalin-Welt',    'rare',4,32.0,'#E040A0','prismatic'),
+P('r19','Fluorit-Mond',     'rare',5,42.0,'#80FF80','crystal'),
+P('r20','Aquamarin-Welt',   'rare',5,55.0,'#60E0D0','ocean'),
+P('r21','Onyx-Ball',        'rare',5,70.0,'#202030','void'),
+P('r22','Rhodonit-Kern',    'rare',6,90.0,'#C03060','crystal'),
+P('e01','Quanten-Zwilling', 'epic',2,100, '#6040FF','quantum'),
+P('e02','Plasma-Koloss',    'epic',2,130, '#FF6000','stellar'),
+P('e03','Dunkel-Magie',     'epic',2,160, '#200040','shadow'),
+P('e04','Ionensturm',       'epic',3,220, '#0040FF','gas'),
+P('e05','Neutronen-Ball',   'epic',3,280, '#102030','void'),
+P('e06','Magma-Riese',      'epic',3,350, '#FF3000','volcanic'),
+P('e07','Kristall-Nebel',   'epic',3,450, '#C040C0','crystal'),
+P('e08','Pulsars-Echo',     'epic',3,550, '#A0C0FF','stellar'),
+P('e09','Tachyon-Welt',     'epic',4,700, '#00A0FF','quantum'),
+P('e10','Schattenfels',     'epic',4,900, '#100020','shadow'),
+P('e11','Antigrav-Mond',    'epic',4,1200,'#6000C0','quantum'),
+P('e12','Spektral-Ball',    'epic',4,1500,'#FF0080','prismatic'),
+P('e13','Zeitriss-Welt',    'epic',5,2000,'#0080C0','quantum'),
+P('e14','Aether-Koloss',    'epic',5,2800,'#0010A0','void'),
+P('e15','Chroma-Riese',     'epic',5,3800,'#FF8040','prismatic'),
+P('e16','Resonanz-Koloss',  'epic',6,5000,'#2080FF','gas'),
+P('m01','Urknall-Kern',     'mythic',3,8000, '#FFFFA0','stellar'),
+P('m02','Schwarzloch-Ring', 'mythic',3,12000,'#050505','void'),
+P('m03','Supernova-Frag',   'mythic',3,18000,'#FF2000','stellar'),
+P('m04','Wormhole-Zentr',   'mythic',4,28000,'#4000FF','quantum'),
+P('m05','Neutronenstern',   'mythic',4,40000,'#80C0FF','stellar'),
+P('m06','Quasar-Fragment',  'mythic',4,60000,'#FF8000','stellar'),
+P('m07','Anti-Materie',     'mythic',5,90000,'#FF00FF','quantum'),
+P('m08','Dimension-Riss',   'mythic',5,130000,'#8000FF','quantum'),
+P('m09','Galaxis-Kern',     'mythic',5,200000,'#FFC000','stellar'),
+P('m10','Anti-Kosmos',      'mythic',6,320000,'#0000FF','void'),
+P('s01','Schöpfungs-Funke', 'secret',4,600000,  '#FFE040','stellar'),
+P('s02','Realitäts-Kern',   'secret',4,1000000, '#0000FF','quantum'),
+P('s03','Kosmos-Herz',      'secret',4,1800000, '#FF0040','stellar'),
+P('s04','Ewigkeits-Mond',   'secret',5,3200000, '#FFC080','divine'),
+P('s05','Manifest-Kern',    'secret',5,6000000, '#FF8040','divine'),
+P('s06','Urlichts-Fragment','secret',6,1.2e7,   '#FFFF80','stellar'),
+P('s07','Bewusstsein-Sph',  'secret',6,2.5e7,   '#200060','void'),
+P('s08','Transzendenz',     'secret',6,5e7,     '#FF60FF','quantum'),
+P('g01','Göttliches Auge',  'divine',5,1.5e8,   '#FFD700','divine'),
+P('g02','Schöpfer-Hand',    'divine',5,5e8,     '#FFFFC0','divine'),
+P('g03','Ewiger Wille',     'divine',6,2e9,     '#FFC000','divine'),
+P('g04','Himmels-Zitad.',   'divine',6,1e10,    '#E0E8FF','divine'),
+P('g05','KLICK-GOTTHEIT',   'divine',6,1e11,    '#FFFFFF','divine'),
+];
+
+const buildingPlanetPool=[
+Pb('bc01','Erz-Mond',       'common',1,1.04,'#9B8355','rocky'),
+Pb('bc02','Kohle-Ball',     'common',1,1.05,'#606060','rocky'),
+Pb('bc03','Lehm-Welt',      'common',1,1.06,'#D4A882','desert'),
+Pb('bc04','Frost-Splitter', 'common',1,1.07,'#B8D4E8','ice'),
+Pb('bc05','Moos-Mond',      'common',1,1.05,'#3A5230','forest'),
+Pb('bc06','Russ-Stein',     'common',1,1.08,'#7B3030','volcanic'),
+Pb('bc07','Dampf-Ball',     'common',1,1.07,'#8090A0','gas'),
+Pb('bc08','Anthrazit',      'common',1,1.04,'#252525','rocky'),
+Pb('bc09','Ton-Wüste',      'common',1,1.09,'#C4A453','desert'),
+Pb('bc10','Schiefer-Mond',  'common',1,1.08,'#A06030','rocky'),
+Pb('bc11','Grauer Riese',   'common',2,1.12,'#707070','rocky'),
+Pb('bc12','Permafrost',     'common',2,1.15,'#C8E0F0','ice'),
+Pb('bc13','Salzebene-B',    'common',2,1.18,'#E0E0D8','ocean'),
+Pb('bc14','Fels-Titan',     'common',2,1.20,'#504020','rocky'),
+Pb('bc15','Tundra-Riese',   'common',2,1.25,'#4A6070','ice'),
+Pb('bc16','Schwefel-Ring',  'common',3,1.30,'#C08010','toxic'),
+Pb('bc17','Basalt-Riese',   'common',3,1.35,'#383838','rocky'),
+Pb('bc18','Lehm-Titan',     'common',3,1.40,'#A07840','desert'),
+Pb('bc19','Eis-Koloß',      'common',3,1.45,'#80B0C8','ice'),
+Pb('bc20','Moos-Riese',     'common',3,1.50,'#2A4020','forest'),
+Pb('rb01','Kupfer-Ozean',   'rare',1,1.80,'#0090FF','ocean'),
+Pb('rb02','Malachit-Welt',  'rare',1,2.00,'#00B060','forest'),
+Pb('rb03','Carneol-Fels',   'rare',1,2.20,'#C02050','crystal'),
+Pb('rb04','Lapislazuli',    'rare',1,2.50,'#2050C0','crystal'),
+Pb('rb05','Türkis-Ozean',   'rare',2,3.00,'#10C0A0','ocean'),
+Pb('rb06','Amethyst-Riese', 'rare',2,3.50,'#9050D0','crystal'),
+Pb('rb07','Gold-Ball',      'rare',2,4.00,'#D09030','volcanic'),
+Pb('rb08','Lava-Wüste',     'rare',2,4.50,'#FF5000','desert'),
+Pb('rb09','Korallen-Mond',  'rare',2,5.00,'#FF7070','ocean'),
+Pb('rb10','Jade-Welt',      'rare',2,5.50,'#00C860','forest'),
+Pb('rb11','Bronze-Riese',   'rare',3,7.00,'#C07040','rocky'),
+Pb('rb12','Neon-Ball',      'rare',3,8.50,'#50FF50','toxic'),
+Pb('rb13','Stahl-Fels',     'rare',3,10.0,'#90A8C8','rocky'),
+Pb('rb14','Kristall-Mond',  'rare',3,12.0,'#D0B0E8','crystal'),
+Pb('rb15','Goldstaub',      'rare',3,15.0,'#D0B010','void'),
+Pb('rb16','Plasma-Mond',    'rare',4,20.0,'#C080FF','quantum'),
+Pb('rb17','Magnet-Welt',    'rare',4,25.0,'#4080C0','rocky'),
+Pb('rb18','Ionit-Riese',    'rare',4,32.0,'#20D0A0','ocean'),
+Pb('rb19','Zirkon-Riese',   'rare',5,42.0,'#C0A0E0','crystal'),
+Pb('rb20','Opal-Titan',     'rare',5,55.0,'#C0D0FF','prismatic'),
+Pb('rb21','Nexus-Ball',     'rare',5,70.0,'#8060C0','quantum'),
+Pb('rb22','Plasma-Gigant',  'rare',6,90.0,'#A050FF','quantum'),
+Pb('eb01','Plasma-Zwilling','epic',2,100, '#5040FF','quantum'),
+Pb('eb02','Magma-Koloss',   'epic',2,130, '#FF7000','stellar'),
+Pb('eb03','Schatten-Magie', 'epic',2,160, '#300050','shadow'),
+Pb('eb04','Ion-Sturm',      'epic',3,220, '#0050FF','gas'),
+Pb('eb05','Neutronen-Kern', 'epic',3,280, '#182040','void'),
+Pb('eb06','Vulkan-Riese',   'epic',3,350, '#FF4000','volcanic'),
+Pb('eb07','Plasma-Nebel',   'epic',3,450, '#D050D0','crystal'),
+Pb('eb08','Pulsar-Welle',   'epic',3,550, '#B0D0FF','stellar'),
+Pb('eb09','Tachyon-Kern',   'epic',4,700, '#00B0FF','quantum'),
+Pb('eb10','Dunkel-Koloss',  'epic',4,900, '#180028','shadow'),
+Pb('eb11','Reaktions-Kern', 'epic',4,1200,'#8060FF','quantum'),
+Pb('eb12','Resonanz-Ring',  'epic',4,1500,'#FF60A0','stellar'),
+Pb('eb13','Zeitfeld-Ball',  'epic',5,2000,'#00A0C0','quantum'),
+Pb('eb14','Void-Titan',     'epic',5,2800,'#040415','void'),
+Pb('eb15','Spektrum-Riese', 'epic',5,3800,'#FF80C0','prismatic'),
+Pb('eb16','Kausal-Koloss',  'epic',6,5000,'#4080FF','quantum'),
+Pb('mb01','Urknall-Welle',  'mythic',3,8000, '#FFFFB0','stellar'),
+Pb('mb02','Schwarzloch-Halo','mythic',3,12000,'#080808','void'),
+Pb('mb03','Supernova-Kern', 'mythic',3,18000,'#FF3000','stellar'),
+Pb('mb04','Wormhole-Ring',  'mythic',4,28000,'#5000FF','quantum'),
+Pb('mb05','Neutronen-Käfig','mythic',4,40000,'#90D0FF','stellar'),
+Pb('mb06','Quasar-Ring',    'mythic',4,60000,'#FF9000','stellar'),
+Pb('mb07','Dunkel-Materie', 'mythic',5,90000,'#200030','shadow'),
+Pb('mb08','Kosmos-Matrix',  'mythic',5,130000,'#60C0FF','quantum'),
+Pb('mb09','Galaxis-Herz',   'mythic',5,200000,'#FFB000','stellar'),
+Pb('mb10','Nullpunkt-Rex',  'mythic',6,320000,'#000030','void'),
+Pb('sb01','Schöpfungs-Licht','secret',4,600000,  '#FFE050','stellar'),
+Pb('sb02','Realitäts-Welle','secret',4,1000000, '#1000FF','quantum'),
+Pb('sb03','Kosmos-Herz-B',  'secret',4,1800000, '#FF0050','stellar'),
+Pb('sb04','Ewigkeits-Kern', 'secret',5,3200000, '#FFD090','divine'),
+Pb('sb05','Manifest-Licht', 'secret',5,6000000, '#FF9050','divine'),
+Pb('sb06','Schöpfungs-Odem','secret',6,1.2e7,   '#FFFFD0','stellar'),
+Pb('sb07','Nexus-Wille',    'secret',6,2.5e7,   '#C0C0FF','quantum'),
+Pb('sb08','Urkraft-Sphäre', 'secret',6,5e7,     '#FF50FF','quantum'),
+Pb('gb01','Göttl. Licht',   'divine',5,1.5e8,   '#FFE700','divine'),
+Pb('gb02','Schöpfer-Wille', 'divine',5,5e8,     '#FFFFD0','divine'),
+Pb('gb03','Ewiger Kern',    'divine',6,2e9,     '#FFC800','divine'),
+Pb('gb04','Himmels-Kern',   'divine',6,1e10,    '#E8F0FF','divine'),
+Pb('gb05','GEBÄUDE-GOTT',   'divine',6,1e11,    '#FFFFFF','divine'),
 ];
 
 // ── PLANET CSS RENDERING (no external images) ─────────────────
@@ -340,23 +385,42 @@ const buildingsData=[
 ];
 let buildings=buildingsData.map(b=>({amount:0,cost:b.baseCost,eps:b.baseEps}));
 
-// ── TECHS ─────────────────────────────────────────────────────
+// ── TECHS (12 types, 1000 upgrades, ~1 month playtime) ──────────
+const TECH_DEFS=[
+    ['click_mult','Impuls-Verstärker',   i=>1+i*0.008,  i=>`Klick ×${(1+i*0.008).toFixed(3)}`],
+    ['eps_mult',  'Reaktor-Tuning',      i=>1+i*0.015,  i=>`EPS ×${(1+i*0.015).toFixed(3)}`],
+    ['click_mult','Plasma-Kanone',       i=>1+i*0.012,  i=>`Klick ×${(1+i*0.012).toFixed(3)}`],
+    ['eps_mult',  'Fusions-Katalysator', i=>1+i*0.022,  i=>`EPS ×${(1+i*0.022).toFixed(3)}`],
+    ['click_add', 'Quantenfeld',         i=>Math.floor(i*25+10),  i=>`+${Math.floor(i*25+10)} Klickkraft`],
+    ['eps_add',   'Energie-Injektor',    i=>Math.floor(50*Math.pow(1.8,i)), i=>`EPS +Flat`],
+    ['click_mult','Neutronen-Finger',    i=>1+i*0.018,  i=>`Klick ×${(1+i*0.018).toFixed(3)}`],
+    ['eps_mult',  'Antimaterien-Kern',   i=>1+i*0.028,  i=>`EPS ×${(1+i*0.028).toFixed(3)}`],
+    ['click_mult','Tachyon-Boost',       i=>1+i*0.025,  i=>`Klick ×${(1+i*0.025).toFixed(3)}`],
+    ['eps_mult',  'Hyperraum-Schub',     i=>1+i*0.035,  i=>`EPS ×${(1+i*0.035).toFixed(3)}`],
+    ['click_add', 'Psi-Amplifier',       i=>Math.floor(i*50+20),  i=>`+${Math.floor(i*50+20)} Klickkraft`],
+    ['eps_add',   'Void-Zapfer',         i=>Math.floor(500*Math.pow(2.0,i)), i=>`EPS +Flat`],
+];
+const TECH_TIERS=['Alpha','Beta','Gamma','Delta','Epsilon','Zeta','Eta','Theta','Iota','Kappa'];
 const techs=[];
 for(let i=1;i<=1000;i++){
-    let cost=300*Math.pow(1.31,i)+i*i*350;
-    let type=i%2===0?'click':'eps';
-    let power=type==='click'?Math.floor(i*12+5):1.15;
-    techs.push({id:`tech-${i}`,name:`Cosmic Upgrade #${i}`,desc:type==='click'?`+${power} Klickkraft`:`+15% EPS`,cost,type,power,purchased:false});
+    const dIdx=(i-1)%TECH_DEFS.length;
+    const lI=Math.floor((i-1)/TECH_DEFS.length)+1;
+    const [type,nameBase,powerFn,descFn]=TECH_DEFS[dIdx];
+    const cost=180*Math.pow(1.25,i)+i*i*120;
+    const power=powerFn(lI);
+    const tier=TECH_TIERS[Math.min(9,Math.floor((lI-1)/5))];
+    const name=`${nameBase} [${tier}-${lI}]`;
+    const desc=descFn(lI);
+    techs.push({id:`tech-${i}`,name,desc,cost,type,power,purchased:false});
 }
 
-// ── HELPERS ───────────────────────────────────────────────────
-const getEl=id=>document.getElementById(id);
-const SHORT_SUFFIXES=['','k','Mio.','Mrd.','Bio.','Brd.','Trio.','Trd.','Quadri.','Quanti.','Sexti.','Septi.','Okti.','Noni.','Dezi.','Undezi.','Duodezi.','Tredezi.','Quattuordezi.','Quindezi.','Sexdezi.','Septemdezi.','Oktodezi.','Novemdezi.','Viginti.','Cent.'];
+const SHORT_SUFFIXES=['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc','Ud','Dd','Td','Qad','Qid','Sxd','Spd','Ocd','Nod','Vg','UVg','DVg','TVg','QaVg','QiVg','SxVg','SpVg','OcVg','NoVg','Tg'];
+
 function formatNumbers(n){
-    if(n===null||n===undefined||isNaN(n))return '0';
+    if(n===null||n===undefined||isNaN(n)||!isFinite(n))return '0';
     if(n<1000)return Math.floor(n).toString();
-    const tier=Math.floor(Math.log10(n)/3);
-    if(tier>=SHORT_SUFFIXES.length)return n.toExponential(2);
+    const tier=Math.floor(Math.log10(Math.abs(n))/3);
+    if(tier<=0||tier>=SHORT_SUFFIXES.length)return n.toExponential(2);
     return (n/Math.pow(10,tier*3)).toFixed(2)+' '+SHORT_SUFFIXES[tier];
 }
 
@@ -369,19 +433,6 @@ function buildGameUI(){
         btn.onclick=()=>buyBuilding(i); sl.appendChild(btn);
     });
     renderTechs();
-}
-function renderTechs(){
-    const tl=getEl('dynamic-tech-list'); if(!tl)return; tl.innerHTML='';
-    let shown=0;
-    for(let i=0;i<techs.length;i++){
-        const t=techs[i]; if(t.purchased)continue;
-        if(energy>=t.cost*.05||shown<8){
-            const btn=document.createElement('button'); btn.className='tech-item'; btn.id=t.id;
-            btn.innerHTML=`<div class="item-info"><span class="item-name">${t.name}</span><span class="item-description">${t.desc}</span><span class="item-cost">Kosten: ${formatNumbers(t.cost)}</span></div>`;
-            btn.onclick=()=>buyTechById(t.id); tl.appendChild(btn); shown++;
-        }
-        if(shown>=12)break;
-    }
 }
 function updateDisplay(){
     if(getEl('energy-count'))getEl('energy-count').textContent=formatNumbers(energy);
@@ -397,23 +448,9 @@ function updateDisplay(){
     renderTechs();
     if(getEl('star-cores-count'))getEl('star-cores-count').textContent=starCores;
     if(getEl('pending-cores'))getEl('pending-cores').textContent=formatNumbers(calculatePendingCores());
-    if(getEl('gacha-cost-display'))getEl('gacha-cost-display').textContent=formatNumbers(bannerCosts[activeBanner]);
+
     if(getEl('inventory-count'))getEl('inventory-count').textContent=inventory.length;
     if(getEl('ach-count'))getEl('ach-count').textContent=unlockedAch.length+'/200';
-}
-function calculateTotalClickPower(){
-    let p=clickPower;
-    techs.forEach(t=>{if(t&&t.purchased&&t.type==='click')p+=t.power;});
-    equippedPlanets.forEach(ep=>{if(ep&&ep.multiplier)p+=ep.multiplier;});
-    purchasedStars.forEach(id=>{if(typeof id==='string'&&id.includes('Klick'))p*=2;});
-    return p;
-}
-function recalculateEps(){
-    let base=0;
-    buildings.forEach(b=>{if(b)base+=b.amount*b.eps;});
-    techs.forEach(t=>{if(t&&t.purchased&&t.type==='eps')base*=t.power;});
-    purchasedStars.forEach(id=>{if(typeof id==='string'&&!id.includes('Klick'))base*=1.5;});
-    eps=base;
 }
 function buyBuilding(i){
     const b=buildings[i];
@@ -450,6 +487,41 @@ function createClickParticle(e){
     cont.appendChild(part);
     part.addEventListener('animationend',()=>part.remove());
 }
+// Achievement check
+
+function getEl(id){return document.getElementById(id);}
+
+function calculateTotalClickPower(){
+    let base=clickPower, addBonus=0, multBonus=1;
+    techs.forEach(t=>{
+        if(!t||!t.purchased)return;
+        if(t.type==='click_mult')multBonus*=t.power;
+        if(t.type==='click_add')addBonus+=t.power;
+    });
+    base=(base+addBonus)*multBonus;
+    equippedPlanets.forEach((ep,idx)=>{
+        if(ep&&ep.multiplier&&(ep.gachaType==='click'||(ep.gachaType==null&&idx<3)))base*=ep.multiplier;
+    });
+    purchasedStars.forEach(id=>{if(typeof id==='string'&&id.includes('Klick'))base*=2;});
+    return Math.max(1,base);
+}
+function recalculateEps(){
+    let base=0;
+    buildings.forEach(b=>{if(b)base+=b.amount*b.eps;});
+    let epsMult=1, epsAdd=0;
+    techs.forEach(t=>{
+        if(!t||!t.purchased)return;
+        if(t.type==='eps_mult')epsMult*=t.power;
+        if(t.type==='eps_add')epsAdd+=t.power;
+    });
+    base=(base+epsAdd)*epsMult;
+    equippedPlanets.forEach((ep,idx)=>{
+        if(ep&&ep.multiplier&&(ep.gachaType==='building'||(ep.gachaType==null&&idx>=3)))base*=ep.multiplier;
+    });
+    purchasedStars.forEach(id=>{if(typeof id==='string'&&!id.includes('Klick'))base*=1.5;});
+    eps=base;
+}
+
 // Achievement check
 function checkAchievements(){
     ACHIEVEMENTS.forEach(ach=>{
@@ -804,6 +876,8 @@ function shockwave(x,y,col,dur=1.2){
     el.addEventListener('animationend',()=>el.remove());
 }
 
+
+const spawnShockwave=shockwave;
 function screenShake(intensity=7,dur=400){
     const bl=getEl('cinematic-blackout'); if(!bl)return;
     let start=null;
@@ -1405,45 +1479,318 @@ const _rollWithDivine=function(){
         isRolling=false; if(btn)btn.disabled=false;
     },delay);
 };
-// Replace rollPlanet
-rollPlanet=_rollWithDivine;
-// ══════════════════════════════════════════════════════════════
-// INVENTORY & EQUIP UI  (uses getPlanetGradient from data)
-// ══════════════════════════════════════════════════════════════
-function updateInventoryUI() {
-    const c=getEl('gacha-inventory'); if(!c)return; c.innerHTML='';
-    if(getEl('inventory-count'))getEl('inventory-count').textContent=inventory.length;
-    inventory.forEach(p=>{
-        if(equippedPlanets.some(ep=>ep&&ep.instanceId===p.instanceId))return;
-        const card=document.createElement('div'); card.className=`planet-card rarity-${p.rarity}`;
-        const grad=getPlanetGradient(p);
-        const extra=getPlanetExtraStyles(p.rarity);
-        card.innerHTML=`<div style="width:28px;height:28px;border-radius:50%;background:${grad};box-shadow:0 0 8px ${p.color}88;margin-bottom:3px;flex-shrink:0;${extra}"></div>
-            <div style="font-size:.6rem;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;text-align:center;">${p.name}</div>
-            <div style="font-size:.58rem;color:#00ff66;">+${formatNumbers(p.multiplier)}</div>`;
-        card.onclick=()=>equipPlanet(p); c.appendChild(card);
+// ── RARITY TABLE: every rarity in every banner ─────────────────
+function getRarityForBanner(banner){
+    const r=Math.random()*100;
+    const tables={
+        1:{divine:0,  secret:0,   mythic:0,  epic:1,  rare:24, common:75},
+        2:{divine:0,  secret:0.5, mythic:2,  epic:15, rare:40, common:42.5},
+        3:{divine:0.1,secret:2,   mythic:12, epic:35, rare:35, common:15.9},
+        4:{divine:0.5,secret:8,   mythic:30, epic:40, rare:18, common:3.5},
+        5:{divine:3,  secret:22,  mythic:40, epic:28, rare:6,  common:1},
+        6:{divine:20, secret:40,  mythic:28, epic:9,  rare:2,  common:1},
+    };
+    const t=tables[banner]||tables[1];
+    let acc=0;
+    for(const [rarity,pct] of Object.entries({divine:t.divine,secret:t.secret,mythic:t.mythic,epic:t.epic,rare:t.rare,common:t.common})){
+        acc+=pct; if(r<acc)return rarity;
+    }
+    return 'common';
+}
+
+// ── UNIFIED ROLL ───────────────────────────────────────────────
+function rollPlanet(){
+    const costs=activeGachaMode==='building'?bannerCostsBuilding:bannerCosts;
+    const cost=costs[activeBanner];
+    if(isRolling||energy<cost)return;
+    isRolling=true;
+    const btn=getEl('roll-gacha-btn'); if(btn)btn.disabled=true;
+    energy-=cost; totalRolls++; updateDisplay();
+    injectKF();
+    const rarity=getRarityForBanner(activeBanner);
+    const cfg=RARITY_CFG[rarity]||RARITY_CFG.common;
+    const delay=cfg.duration;
+    const bl=getEl('cinematic-blackout');
+    if(bl){bl.style.display='flex';bl.style.background=cfg.screenBg;bl.style.animation='';bl.style.transform='';}
+    ['cinematic-beam','cinematic-blast'].forEach(id=>{const e=getEl(id);if(e){e.style.height='0';e.style.width='0';e.style.opacity='0';}});
+    const gEl=getEl('cinematic-glitch-lines'); if(gEl){gEl.style.opacity='0';gEl.innerHTML='';}
+    const orb=getEl('gacha-orb');
+    if(orb){orb.innerHTML='';orb.style.cssText='width:80px;height:80px;border-radius:50%;transform:scale(0);';}
+    const portal=getEl('gacha-portal');
+    if(portal)portal.querySelectorAll('.orb-ring').forEach(r2=>r2.remove());
+    const rt=getEl('gacha-reveal-text'); if(rt){rt.textContent='';rt.style.opacity='0';rt.style.animation='';}
+    const badge=getEl('gacha-rarity-badge'); if(badge){badge.textContent='';badge.style.opacity='0';badge.style.animation='';}
+    initCanvas(cfg.primary,cfg.secondary); _loop();
+    const cd=getEl('cinematic-countdown');
+    if(cd){cd.style.cssText=`font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:bold;letter-spacing:2px;position:relative;z-index:30;color:${cfg.primary};text-shadow:0 0 20px ${cfg.primary};max-width:90%;text-align:center;`;cd.textContent='INITIALISIERE...';}
+    setTimeout(()=>burst({count:30,colors:[cfg.primary,cfg.secondary],speed:5,grav:.05,types:['sp','circle']}),100);
+    setTimeout(()=>{
+        if(rarity==='common')     cin_common(cfg,cd);
+        else if(rarity==='rare')  cin_rare(cfg,cd);
+        else if(rarity==='epic')  cin_epic(cfg,cd);
+        else if(rarity==='mythic')cin_mythic(cfg,cd);
+        else if(rarity==='secret')cin_secret(cfg,cd);
+        else if(rarity==='divine')cin_divine(cfg,cd);
+    },200);
+    setTimeout(()=>{
+        const f=getEl('gacha-flash-overlay');
+        if(f){f.className='';void f.offsetWidth;f.className=cfg.flashClass;}
+    },delay-500);
+    setTimeout(()=>{
+        stopCanvas();
+        if(bl){bl.style.display='none';bl.style.animation='';}
+        if(getEl('gacha-main-stage'))getEl('gacha-main-stage').className='';
+        const f2=getEl('gacha-flash-overlay');if(f2)f2.className='';
+        if(gEl){gEl.style.opacity='0';gEl.innerHTML='';}
+        if(_activeCountdownId!==null){clearInterval(_activeCountdownId);_activeCountdownId=null;}
+        const pool=(activeGachaMode==='building'?buildingPlanetPool:planetPool)
+            .filter(p=>p.rarity===rarity&&p.banner===activeBanner);
+        const fallback=(activeGachaMode==='building'?buildingPlanetPool:planetPool)
+            .filter(p=>p.rarity===rarity);
+        const allPool=activeGachaMode==='building'?buildingPlanetPool:planetPool;
+        const usePool=pool.length?pool:(fallback.length?fallback:allPool);
+        const drawn={...usePool[Math.floor(Math.random()*usePool.length)],instanceId:'inst-'+Date.now()+'-'+Math.floor(Math.random()*1e6)};
+        if(portal){portal.className='portal-idle';portal.style.borderColor=drawn.color;portal.style.boxShadow=`0 0 40px ${drawn.color},0 0 80px ${drawn.color}44`;}
+        revealPlanet(drawn); revealText(drawn,cfg);
+        const stage=getEl('gacha-main-stage');
+        if(stage){stage.style.setProperty('--gc',drawn.color);stage.style.setProperty('--gc-t',drawn.color+'33');stage.style.animation='_stageFlash 1.5s ease-out';setTimeout(()=>{if(stage)stage.style.animation='';},1500);}
+        inventory.push(drawn);
+        if(activeGachaMode==='building')bannerCostsBuilding[activeBanner]=Math.round(bannerCostsBuilding[activeBanner]*1.6);
+        else bannerCosts[activeBanner]=Math.round(bannerCosts[activeBanner]*1.6);
+        const multStr=drawn.multiplier>=1000?'×'+formatNumbers(drawn.multiplier):'×'+drawn.multiplier.toFixed(2);
+        if(getEl('system-log'))getEl('system-log').textContent=`> ${cfg.label}: ${drawn.name} (${multStr})`;
+        updateInventoryUI();updateEquipUI();updateDisplay();checkAchievements();
+        isRolling=false; if(btn)btn.disabled=false;
+    },delay);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FUSION SYSTEM
+// Gold = fusion of 5 any planets (same gachaType)
+// Rainbow = fusion of 5 Gold planets
+// Dark Matter = fusion of 5 Rainbow planets
+// ══════════════════════════════════════════════════════════════════
+let fusionMode=false;
+let fusionSelected=[];
+let inventorySort='rarity';
+let activeQuests=[], completedQuestIds=[], lastSaveTimestamp=Date.now();
+let offlinePopupShown=false; // 'rarity' | 'mult' | 'name'
+
+const FUSION_TIERS=[
+    {id:'gold',    name:'Gold-Planet',       color:'#FFD700', multiplier:null, requires:5, requiresId:null,     glyph:'🌟'},
+    {id:'rainbow', name:'Regenbogen-Planet',  color:'#FF00FF', multiplier:null, requires:5, requiresId:'gold',   glyph:'🌈'},
+    {id:'darkmatter',name:'Dunkle Materie',   color:'#1a0040', multiplier:null, requires:5, requiresId:'rainbow',glyph:'🌑'},
+];
+// Multipliers: Gold = avg of 5 inputs ×3, Rainbow = avg of 5 golds ×4, Dark Matter = avg of 5 rainbows ×5
+function getFusionMultiplier(planets){
+    const avg=planets.reduce((s,p)=>s+p.multiplier,0)/planets.length;
+    return avg;
+}
+
+function toggleFusionMode(){
+    fusionMode=!fusionMode;
+    fusionSelected=[];
+    const btn=getEl('fusion-mode-btn');
+    const hint=getEl('fusion-hint');
+    if(btn){btn.classList.toggle('active',fusionMode);btn.textContent=fusionMode?'❌ ABBRECHEN':'🔥 FUSION';}
+    if(hint){hint.style.display=fusionMode?'block':'none';hint.textContent='Wähle 5 Planeten zum Fusionieren (gleicher Typ).';}
+    updateInventoryUI();
+}
+
+function toggleFusionSelect(p){
+    if(!fusionMode)return;
+    // Only allow same gachaType in one fusion batch
+    if(fusionSelected.length>0){
+        const firstType=inventory.find(x=>x.instanceId===fusionSelected[0]);
+        if(firstType&&(firstType.gachaType||'click')!==(p.gachaType||'click')){
+            showFusionHint('Nur gleicher Typ (Klick oder Gebäude) mischbar!','#ef4444'); return;
+        }
+        // Also require same fusion base: can't mix gold with normal for rainbow
+        const firstFusId=firstType?firstType.fusionId:null;
+        const pFusId=p.fusionId||null;
+        if(firstFusId!==pFusId){
+            showFusionHint('Nur gleiche Planeten-Kategorie mischbar!','#ef4444'); return;
+        }
+    }
+    const idx=fusionSelected.indexOf(p.instanceId);
+    if(idx>=0)fusionSelected.splice(idx,1);
+    else if(fusionSelected.length<5)fusionSelected.push(p.instanceId);
+
+    const hint=getEl('fusion-hint');
+    if(fusionSelected.length===5){
+        if(hint)hint.textContent='5 gewählt! Klicke nochmal auf einen um die Fusion zu starten.';
+        // Auto-fuse after short delay
+        setTimeout(()=>attemptFusion(),300);
+    } else {
+        if(hint)hint.textContent=`${fusionSelected.length}/5 Planeten gewählt.`;
+    }
+    updateInventoryUI();
+}
+
+function showFusionHint(msg,col='#ffb703'){
+    const hint=getEl('fusion-hint');
+    if(hint){hint.textContent=msg;hint.style.color=col;hint.style.display='block';}
+}
+
+function attemptFusion(){
+    if(fusionSelected.length<5){showFusionHint('Brauche 5 Planeten!','#ef4444');return;}
+    const planets=fusionSelected.map(id=>inventory.find(p=>p.instanceId===id)).filter(Boolean);
+    if(planets.length<5){showFusionHint('Fehler: Planeten nicht gefunden.','#ef4444');fusionSelected=[];updateInventoryUI();return;}
+
+    // Determine what we're fusing into
+    const firstFusId=planets[0].fusionId||null;
+    let nextTier;
+    if(firstFusId===null)         nextTier=FUSION_TIERS[0]; // → Gold
+    else if(firstFusId==='gold')  nextTier=FUSION_TIERS[1]; // → Rainbow
+    else if(firstFusId==='rainbow')nextTier=FUSION_TIERS[2]; // → Dark Matter
+    else{showFusionHint('Diese Planeten können nicht weiter fusioniert werden!','#ef4444');fusionSelected=[];updateInventoryUI();return;}
+
+    const boost=nextTier.id==='gold'?3:nextTier.id==='rainbow'?5:10;
+    const newMult=getFusionMultiplier(planets)*boost;
+    const gType=planets[0].gachaType||'click';
+
+    // Remove old planets
+    const removedIds=new Set(fusionSelected);
+    // Unequip any equipped ones
+    equippedPlanets.forEach((ep,i)=>{if(ep&&removedIds.has(ep.instanceId))equippedPlanets[i]=null;});
+    inventory=inventory.filter(p=>!removedIds.has(p.instanceId));
+
+    // Create fusion planet
+    const newPlanet={
+        id:nextTier.id+'_'+Date.now(),
+        name:nextTier.name,
+        rarity:nextTier.id==='darkmatter'?'secret':nextTier.id==='rainbow'?'epic':'rare',
+        banner:3,
+        multiplier:newMult,
+        color:nextTier.color,
+        type:'fusion',
+        gachaType:gType,
+        fusionId:nextTier.id,
+        isFusion:true,
+        instanceId:'fusion-'+Date.now()+'-'+Math.floor(Math.random()*1e6),
+        isNew:true,
+    };
+    inventory.push(newPlanet);
+    fusionSelected=[];
+    fusionMode=false;
+    const btn=getEl('fusion-mode-btn');
+    if(btn){btn.classList.remove('active');btn.textContent='🔥 FUSION';}
+    const hint=getEl('fusion-hint');
+    if(hint){
+        hint.style.color='#00ff88';
+        const ms=newMult>=1000?`×${formatNumbers(newMult)}`:`×${newMult.toFixed(2)}`;
+        hint.textContent=`${nextTier.glyph} ${nextTier.name} erstellt! (${ms})`;
+        setTimeout(()=>{if(hint)hint.style.display='none';},3000);
+    }
+    recalculateEps(); updateEquipUI(); updateInventoryUI(); updateDisplay(); saveGame();
+    if(getEl('system-log'))getEl('system-log').textContent=`> FUSION: ${nextTier.glyph} ${nextTier.name} (×${newMult>=1000?formatNumbers(newMult):newMult.toFixed(2)}) entstanden!`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// INVENTORY & EQUIP UI
+// ══════════════════════════════════════════════════════════════════
+const RARITY_ORDER={common:0,rare:1,epic:2,mythic:3,secret:4,divine:5};
+function getSortedInventory(list){
+    const copy=[...list];
+    if(inventorySort==='mult')return copy.sort((a,b)=>b.multiplier-a.multiplier);
+    if(inventorySort==='name')return copy.sort((a,b)=>a.name.localeCompare(b.name));
+    // default: rarity desc, then mult desc
+    return copy.sort((a,b)=>{
+        const rd=(RARITY_ORDER[b.rarity]||0)-(RARITY_ORDER[a.rarity]||0);
+        return rd!==0?rd:b.multiplier-a.multiplier;
     });
 }
-function updateEquipUI() {
+
+function updateInventoryUI(){
+    const c=getEl('gacha-inventory'); if(!c)return; c.innerHTML='';
+    if(getEl('inventory-count'))getEl('inventory-count').textContent=inventory.length;
+
+    const visible=getSortedInventory(inventory.filter(p=>{
+        if(equippedPlanets.some(ep=>ep&&ep.instanceId===p.instanceId))return false;
+        return (p.gachaType||'click')===activeGachaMode;
+    }));
+
+    // In fusion mode: determine eligible fusionId
+    let eligibleFusionId=undefined;
+    if(fusionMode&&fusionSelected.length>0){
+        const first=inventory.find(x=>x.instanceId===fusionSelected[0]);
+        eligibleFusionId=first?(first.fusionId||null):null;
+    }
+
+    visible.forEach(p=>{
+        const card=document.createElement('div');
+        const isSel=fusionSelected.includes(p.instanceId);
+        const isNew=p.isNew;
+        if(isNew)p.isNew=false;
+
+        // Fusion eligibility
+        let fusionClass='';
+        if(fusionMode){
+            if(isSel) fusionClass=' fusion-selected';
+            else if(fusionSelected.length>0){
+                const first=inventory.find(x=>x.instanceId===fusionSelected[0]);
+                const sameType=(first?(first.gachaType||'click'):null)===(p.gachaType||'click');
+                const sameFusId=(first?(first.fusionId||null):null)===(p.fusionId||null);
+                fusionClass=sameType&&sameFusId?' fusion-candidate':' fusion-ineligible';
+            } else fusionClass=' fusion-candidate';
+        }
+
+        card.className=`planet-card rarity-${p.rarity}${fusionClass}${isNew?' fusion-new':''}`;
+        const grad=p.isFusion?`radial-gradient(circle,${p.color},#000)`:getPlanetGradient(p);
+        const extra=p.isFusion?`animation:_divPulse 2s ease-in-out infinite;`:getPlanetExtraStyles(p.rarity);
+        const icon=p.gachaType==='building'?'⚙️':'⚡';
+        const fusGlyph=p.isFusion?(FUSION_TIERS.find(t=>t.id===p.fusionId)||{glyph:'✨'}).glyph:'';
+        const ms=p.multiplier>=1000?`×${formatNumbers(p.multiplier)}`:`×${p.multiplier.toFixed(2)}`;
+
+        card.innerHTML=`<div style="width:28px;height:28px;border-radius:50%;background:${grad};box-shadow:0 0 8px ${p.color}88;margin-bottom:3px;flex-shrink:0;${extra}"></div>
+            <div style="font-size:.52rem;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;text-align:center;">${fusGlyph||icon}${p.name}</div>
+            <div style="font-size:.65rem;color:#00ff66;font-weight:bold;">${ms}</div>`;
+
+        card.onclick=()=>{
+            if(fusionMode)toggleFusionSelect(p);
+            else equipPlanet(p);
+        };
+        c.appendChild(card);
+    });
+
+    // Sort button cycle label
+    const sortBtn=getEl('sort-inv-btn');
+    if(sortBtn){
+        const labels={rarity:'⬇️ SELTENHEIT',mult:'⬇️ MULTIPLIK.',name:'⬇️ NAME'};
+        sortBtn.textContent=labels[inventorySort]||'⬇️ SORTIEREN';
+    }
+}
+
+function updateEquipUI(){
     const c=getEl('equip-slots-container'); if(!c)return; c.innerHTML='';
-    for(let i=0;i<3;i++){
+    const lbl=getEl('equip-bar-label');
+    if(lbl)lbl.textContent=activeGachaMode==='click'?'AKTIVE ORBITS — KLICK (MAX 3, ×MULT.)':'AKTIVE ORBITS — GEBÄUDE (MAX 3, ×MULT.)';
+    const slotStart=activeGachaMode==='click'?0:3;
+    for(let i=slotStart;i<slotStart+3;i++){
         const box=document.createElement('div'); const p=equippedPlanets[i];
         if(p){
             box.className='slot-box slot-filled'; box.style.borderColor=p.color; box.style.boxShadow=`0 0 12px ${p.color}66`;
             const grad=getPlanetGradient(p);
-            box.innerHTML=`<div style="width:22px;height:22px;border-radius:50%;background:${grad};box-shadow:0 0 8px ${p.color};"></div>
-                <div style="overflow:hidden;width:100%;white-space:nowrap;font-size:.58rem;font-weight:bold;text-align:center;">${p.name}</div>`;
+            const ms=p.multiplier>=1000?`×${formatNumbers(p.multiplier)}`:`×${p.multiplier.toFixed(2)}`;
+            box.innerHTML=`<div style="width:20px;height:20px;border-radius:50%;background:${grad};box-shadow:0 0 6px ${p.color};"></div>
+                <div style="overflow:hidden;width:100%;white-space:nowrap;font-size:.48rem;font-weight:bold;text-align:center;">${p.name}</div>
+                <div style="font-size:.6rem;color:#00ff88;font-weight:bold;">${ms}</div>`;
             box.onclick=()=>unequipPlanet(i);
-        }else{box.className='slot-box';box.innerHTML=`<span style="color:#334155;font-size:.7rem;">✦</span>`;}
+        }else{
+            box.className='slot-box';
+            box.innerHTML=`<span style="color:#334155;font-size:.7rem;">${activeGachaMode==='click'?'⚡':'⚙️'}</span>`;
+        }
         c.appendChild(box);
     }
 }
-function equipPlanet(p){const f=equippedPlanets.indexOf(null);if(f!==-1){equippedPlanets[f]=p;updateInventoryUI();updateEquipUI();recalculateEps();updateDisplay();}}
+function equipPlanet(p){
+    const slotStart=(p.gachaType==='building')?3:0;
+    let f=-1;
+    for(let i=slotStart;i<slotStart+3;i++){if(!equippedPlanets[i]){f=i;break;}}
+    if(f!==-1){equippedPlanets[f]=p;updateInventoryUI();updateEquipUI();recalculateEps();updateDisplay();}
+}
 function unequipPlanet(i){equippedPlanets[i]=null;updateInventoryUI();updateEquipUI();recalculateEps();updateDisplay();}
 
-// ══════════════════════════════════════════════════════════════
-// REBIRTH CONSTELLATION  (8 paths)
-// ══════════════════════════════════════════════════════════════
 function drawConstellation() {
     const container=document.querySelector('.constellation-container'); if(!container)return; container.innerHTML='';
     // 8 paths, 5 stars each — positions [x%, y%]
@@ -1608,62 +1955,552 @@ function initMainStarfield(){
 // ══════════════════════════════════════════════════════════════
 // SAVE / LOAD / RESET
 // ══════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════════
+// TECH RENDER (type-colored badges)
+// ══════════════════════════════════════════════════════════════════
+function renderTechs(){
+    const tl=getEl('dynamic-tech-list'); if(!tl)return; tl.innerHTML='';
+    const typeColors={click_mult:'#00f0ff',eps_mult:'#ffb703',click_add:'#00ff88',eps_add:'#ff6b00'};
+    const typeLabels={click_mult:'KLICK×',eps_mult:'EPS×',click_add:'KLICK+',eps_add:'EPS+flat'};
+    let shown=0;
+    for(let i=0;i<techs.length;i++){
+        const t=techs[i]; if(t.purchased)continue;
+        if(energy>=t.cost*0.05||shown<8){
+            const col=typeColors[t.type]||'#94a3b8';
+            const lbl=typeLabels[t.type]||t.type;
+            const btn=document.createElement('button'); btn.className='tech-item'; btn.id=t.id;
+            btn.innerHTML=`<div class="item-info">
+                <span class="item-name">${t.name} <span style="font-size:.56rem;padding:1px 4px;border-radius:3px;background:${col}20;color:${col};border:1px solid ${col}40;">${lbl}</span></span>
+                <span class="item-description">${t.desc}</span>
+                <span class="item-cost">Kosten: ${formatNumbers(t.cost)}</span>
+            </div>`;
+            btn.onclick=()=>buyTechById(t.id); tl.appendChild(btn); shown++;
+        }
+        if(shown>=12)break;
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STATS SCREEN
+// ══════════════════════════════════════════════════════════════════
+function updateStatsScreen(){
+    const g=getEl('stats-grid'); if(!g)return; g.innerHTML='';
+    const elapsed=totalPlayTime+Math.floor((Date.now()-sessionStartTime)/1000);
+    const fmtTime=s=>{const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60),sc=s%60;
+        return d>0?`${d}T ${h}h ${m}m`:`${h}h ${m}m ${sc}s`;};
+    const stats=[
+        ['⚡ Gesamt-Klicks',    totalClicks.toLocaleString('de')],
+        ['☀️ Gesamt-Energie',   formatNumbers(totalEnergy)],
+        ['🎲 Gacha-Rolls',      totalRolls.toLocaleString('de')],
+        ['♻️ Rebirths',         rebirthCount],
+        ['🌍 Planeten gesamt',  inventory.length],
+        ['⭐ Sternen-Kerne',    starCores],
+        ['✨ Achievements',     `${unlockedAch.length}/200`],
+        ['🔬 Techs gekauft',    `${techs.filter(t=>t.purchased).length}/1000`],
+        ['🏗️ Gebäude gesamt',   buildings.reduce((s,b)=>s+b.amount,0)],
+        ['💡 Klickkraft',       '×'+formatNumbers(calculateTotalClickPower())],
+        ['⚙️ EPS',             formatNumbers(eps)+'/s'],
+        ['⏰ Spielzeit',        fmtTime(elapsed)],
+        ['🎯 Ziel',            '~30 Tage bis Omega-Status'],
+    ];
+    stats.forEach(([label,value])=>{
+        const card=document.createElement('div'); card.className='stat-card';
+        card.innerHTML=`<div class="stat-card-label">${label}</div><div class="stat-card-value">${value}</div>`;
+        g.appendChild(card);
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// REBIRTH PLANET KEEPER (2 click + 2 building to keep)
+// ══════════════════════════════════════════════════════════════════
+let _keeperSel={click:[],building:[]};
+function openKeeperScreen(){
+    _keeperSel={click:[],building:[]};
+    const ks=getEl('keeper-screen'); if(ks)ks.style.display='block';
+    renderKeeperLists();
+}
+function renderKeeperLists(){
+    ['click','building'].forEach(mode=>{
+        const el=getEl(`keeper-${mode}-list`); if(!el)return; el.innerHTML='';
+        const planets=[...inventory].filter(p=>(p.gachaType||'click')===mode)
+            .sort((a,b)=>b.multiplier-a.multiplier);
+        if(!planets.length){el.innerHTML=`<div style="color:#64748b;font-size:.7rem;padding:8px;">Keine Planeten</div>`;return;}
+        planets.forEach(p=>{
+            const card=document.createElement('div');
+            const isSel=_keeperSel[mode].includes(p.instanceId);
+            card.className='keeper-card'+(isSel?' keeper-selected':'');
+            card.style.borderColor=isSel?'#00ff88':p.color;
+            const grad=getPlanetGradient(p);
+            const ms=p.multiplier>=1000?`×${formatNumbers(p.multiplier)}`:`×${p.multiplier.toFixed(2)}`;
+            card.innerHTML=`<div style="width:22px;height:22px;border-radius:50%;background:${grad};box-shadow:0 0 5px ${p.color};"></div>
+                <div style="font-size:.48rem;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:54px;">${p.name}</div>
+                <div style="font-size:.58rem;color:${isSel?'#00ff88':'#94a3b8'};">${ms}</div>`;
+            card.onclick=()=>{
+                const sel=_keeperSel[mode];
+                const idx=sel.indexOf(p.instanceId);
+                if(idx>=0)sel.splice(idx,1);
+                else if(sel.length<2)sel.push(p.instanceId);
+                renderKeeperLists();
+            };
+            el.appendChild(card);
+        });
+    });
+    if(getEl('keeper-count-click'))getEl('keeper-count-click').textContent=_keeperSel.click.length;
+    if(getEl('keeper-count-building'))getEl('keeper-count-building').textContent=_keeperSel.building.length;
+}
+function confirmRebirth(){
+    const gain=calculatePendingCores(); if(gain<=0)return;
+    const keptIds=[..._keeperSel.click,..._keeperSel.building];
+    const keptPlanets=inventory.filter(p=>keptIds.includes(p.instanceId));
+    // Rebirth
+    starCores+=gain; energy=0; eps=0; rebirthCount++;
+    buildings.forEach((b,i)=>{b.amount=0;b.cost=buildingsData[i].baseCost;});
+    techs.forEach(t=>t.purchased=false);
+    // Reset costs
+    Object.keys(bannerCosts).forEach(k=>bannerCosts[k]=BASE_BANNER_COSTS[k]);
+    Object.keys(bannerCostsBuilding).forEach(k=>bannerCostsBuilding[k]=BASE_BANNER_COSTS_B[k]);
+    inventory=keptPlanets;
+    equippedPlanets=[null,null,null,null,null,null];
+    // Auto-equip best kept
+    ['click','building'].forEach((mode,mi)=>{
+        const sl=mi===0?0:3;
+        keptPlanets.filter(p=>(p.gachaType||'click')===mode)
+            .sort((a,b)=>b.multiplier-a.multiplier)
+            .slice(0,3).forEach((p,i)=>equippedPlanets[sl+i]=p);
+    });
+    if(getEl('keeper-screen'))getEl('keeper-screen').style.display='none';
+    if(getEl('rebirth-screen'))getEl('rebirth-screen').style.display='none';
+    recalculateEps(); saveGame(); updateInventoryUI(); updateEquipUI();
+    buildGameUI(); updateDisplay(); checkAchievements();
+    if(getEl('system-log'))getEl('system-log').textContent=`> Rebirth #${rebirthCount} | +${gain} Kerne | ${keptPlanets.length} Planeten behalten.`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// GACHA MODE + BANNER DISPLAY EXTRAS
+// ══════════════════════════════════════════════════════════════════
+function updateDisplayExtras(){
+    const costs=activeGachaMode==='building'?bannerCostsBuilding:bannerCosts;
+    if(getEl('gacha-cost-display'))getEl('gacha-cost-display').textContent=formatNumbers(costs[activeBanner]);
+    if(getEl('click-power-count'))getEl('click-power-count').textContent=formatNumbers(calculateTotalClickPower());
+    if(getEl('star-cores-count'))getEl('star-cores-count').textContent=starCores;
+    if(getEl('pending-cores'))getEl('pending-cores').textContent=calculatePendingCores();
+    if(getEl('ach-count'))getEl('ach-count').textContent=`${unlockedAch.length}/200`;
+    if(getEl('inventory-count'))getEl('inventory-count').textContent=inventory.length;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SAVE / LOAD / RESET
+// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// QUEST SYSTEM
+// ══════════════════════════════════════════════════════════════════
+const QUEST_TEMPLATES=[
+    // Clicker quests
+    {id:'q_click_100',  cat:'click', name:'Fingerwärmer',     desc:'Klicke 100 Mal.',          goal:()=>totalClicks>=100,       reward:{type:'energy',amount:()=>Math.max(5000,eps*30)},     icon:'👆'},
+    {id:'q_click_500',  cat:'click', name:'Klick-Maschine',   desc:'Klicke 500 Mal.',          goal:()=>totalClicks>=500,       reward:{type:'energy',amount:()=>Math.max(50000,eps*60)},    icon:'👆'},
+    {id:'q_click_2000', cat:'click', name:'Tausend-Finger',   desc:'Klicke 2.000 Mal.',        goal:()=>totalClicks>=2000,      reward:{type:'starcore',amount:()=>1},                       icon:'⚡'},
+    {id:'q_click_10000',cat:'click', name:'Unendlicher Tap',  desc:'Klicke 10.000 Mal.',       goal:()=>totalClicks>=10000,     reward:{type:'starcore',amount:()=>3},                       icon:'⚡'},
+    // Energy quests
+    {id:'q_e_1m',   cat:'energy', name:'Erste Million',       desc:'Verdiene 1 Mio Energie.',  goal:()=>totalEnergy>=1e6,       reward:{type:'energy',amount:()=>Math.max(1e5,eps*60)},     icon:'☀️'},
+    {id:'q_e_1b',   cat:'energy', name:'Milliardär',          desc:'Verdiene 1 Mrd Energie.',  goal:()=>totalEnergy>=1e9,       reward:{type:'energy',amount:()=>Math.max(1e7,eps*120)},    icon:'☀️'},
+    {id:'q_e_1t',   cat:'energy', name:'Billionen-Reaktor',   desc:'Verdiene 1 Bio Energie.',  goal:()=>totalEnergy>=1e12,      reward:{type:'starcore',amount:()=>2},                      icon:'🌟'},
+    {id:'q_e_1q',   cat:'energy', name:'Quadrillionär',       desc:'Verdiene 1 Qa Energie.',   goal:()=>totalEnergy>=1e15,      reward:{type:'starcore',amount:()=>5},                      icon:'🌟'},
+    // Building quests
+    {id:'q_b_10',   cat:'build',  name:'Bauleiter',           desc:'Kaufe 10 Gebäude.',         goal:()=>buildings.reduce((s,b)=>s+b.amount,0)>=10,   reward:{type:'energy',amount:()=>Math.max(1e4,eps*30)},  icon:'🏗️'},
+    {id:'q_b_50',   cat:'build',  name:'Stadtplaner',         desc:'Kaufe 50 Gebäude.',         goal:()=>buildings.reduce((s,b)=>s+b.amount,0)>=50,   reward:{type:'energy',amount:()=>Math.max(5e5,eps*60)},  icon:'🏗️'},
+    {id:'q_b_200',  cat:'build',  name:'Megakonzern',         desc:'Kaufe 200 Gebäude.',        goal:()=>buildings.reduce((s,b)=>s+b.amount,0)>=200,  reward:{type:'starcore',amount:()=>2},                   icon:'🏙️'},
+    {id:'q_b_500',  cat:'build',  name:'Galaktischer Konzern',desc:'Kaufe 500 Gebäude.',        goal:()=>buildings.reduce((s,b)=>s+b.amount,0)>=500,  reward:{type:'starcore',amount:()=>5},                   icon:'🏙️'},
+    // Tech quests
+    {id:'q_t_5',    cat:'tech',   name:'Forscher',            desc:'Kaufe 5 Upgrades.',         goal:()=>techs.filter(t=>t.purchased).length>=5,      reward:{type:'energy',amount:()=>Math.max(2e4,eps*30)},  icon:'🔬'},
+    {id:'q_t_20',   cat:'tech',   name:'Wissenschaftler',     desc:'Kaufe 20 Upgrades.',        goal:()=>techs.filter(t=>t.purchased).length>=20,     reward:{type:'energy',amount:()=>Math.max(5e6,eps*60)},  icon:'🔬'},
+    {id:'q_t_100',  cat:'tech',   name:'Genie',               desc:'Kaufe 100 Upgrades.',       goal:()=>techs.filter(t=>t.purchased).length>=100,    reward:{type:'starcore',amount:()=>3},                   icon:'🧠'},
+    {id:'q_t_500',  cat:'tech',   name:'Omniszient',          desc:'Kaufe 500 Upgrades.',       goal:()=>techs.filter(t=>t.purchased).length>=500,    reward:{type:'starcore',amount:()=>10},                  icon:'🧠'},
+    // Gacha quests
+    {id:'q_g_1',    cat:'gacha',  name:'Erster Kontakt',      desc:'Mache 1 Gacha-Roll.',       goal:()=>totalRolls>=1,          reward:{type:'energy',amount:()=>Math.max(5e4,eps*30)},     icon:'🎲'},
+    {id:'q_g_10',   cat:'gacha',  name:'Planetenjäger',       desc:'Mache 10 Gacha-Rolls.',     goal:()=>totalRolls>=10,         reward:{type:'energy',amount:()=>Math.max(1e6,eps*60)},     icon:'🎲'},
+    {id:'q_g_50',   cat:'gacha',  name:'Galaxissammler',      desc:'Mache 50 Gacha-Rolls.',     goal:()=>totalRolls>=50,         reward:{type:'starcore',amount:()=>2},                      icon:'🌌'},
+    {id:'q_g_200',  cat:'gacha',  name:'Singularitätsjäger',  desc:'Mache 200 Gacha-Rolls.',    goal:()=>totalRolls>=200,        reward:{type:'starcore',amount:()=>8},                      icon:'🌌'},
+    // Rebirth quests
+    {id:'q_r_1',    cat:'rebirth',name:'Neugeboren',           desc:'Führe 1 Rebirth durch.',    goal:()=>rebirthCount>=1,        reward:{type:'starcore',amount:()=>5},                      icon:'♻️'},
+    {id:'q_r_3',    cat:'rebirth',name:'Phönix',               desc:'Führe 3 Rebirths durch.',   goal:()=>rebirthCount>=3,        reward:{type:'starcore',amount:()=>15},                     icon:'🔥'},
+    {id:'q_r_10',   cat:'rebirth',name:'Kosmischer Zyklus',    desc:'Führe 10 Rebirths durch.',  goal:()=>rebirthCount>=10,       reward:{type:'starcore',amount:()=>50},                     icon:'♾️'},
+    // EPS quests
+    {id:'q_eps_1k', cat:'eps',    name:'Reaktor online',       desc:'Erreiche 1.000 EPS.',       goal:()=>eps>=1000,              reward:{type:'energy',amount:()=>Math.max(5e4,eps*30)},     icon:'⚙️'},
+    {id:'q_eps_1m', cat:'eps',    name:'Energiefabrik',        desc:'Erreiche 1 Mio EPS.',       goal:()=>eps>=1e6,               reward:{type:'energy',amount:()=>Math.max(1e7,eps*60)},     icon:'⚙️'},
+    {id:'q_eps_1b', cat:'eps',    name:'Planeten-Reaktor',     desc:'Erreiche 1 Mrd EPS.',       goal:()=>eps>=1e9,               reward:{type:'starcore',amount:()=>3},                      icon:'⚡'},
+    {id:'q_eps_1t', cat:'eps',    name:'Galaktischer Reaktor', desc:'Erreiche 1 Bio EPS.',       goal:()=>eps>=1e12,              reward:{type:'starcore',amount:()=>10},                     icon:'⚡'},
+    // Fusion quests
+    {id:'q_f_gold', cat:'fusion', name:'Goldschmied',          desc:'Erstelle einen Gold-Planeten.',   goal:()=>inventory.some(p=>p.fusionId==='gold'),    reward:{type:'starcore',amount:()=>2}, icon:'🌟'},
+    {id:'q_f_rain', cat:'fusion', name:'Regenbogenjäger',      desc:'Erstelle einen Regenbogen-Planeten.', goal:()=>inventory.some(p=>p.fusionId==='rainbow'), reward:{type:'starcore',amount:()=>8}, icon:'🌈'},
+    {id:'q_f_dark', cat:'fusion', name:'Dunkle Kunst',         desc:'Erstelle einen Dunkle-Materie-Planeten.', goal:()=>inventory.some(p=>p.fusionId==='darkmatter'), reward:{type:'starcore',amount:()=>25},icon:'🌑'},
+];
+
+const QUEST_CAT_COLS={click:'#00f0ff',energy:'#ffb703',build:'#ff6b00',tech:'#00ff88',gacha:'#ff00ff',rebirth:'#ff4444',eps:'#ff9500',fusion:'#ffd700'};
+
+function generateDailyQuests(){
+    // Pick 5 quests that haven't been permanently completed, weighted toward early ones
+    const available=QUEST_TEMPLATES.filter(q=>!completedQuestIds.includes(q.id));
+    const shuffled=[...available].sort(()=>Math.random()-.5);
+    activeQuests=shuffled.slice(0,5).map(q=>({
+        ...q,
+        claimed:false,
+        completed:false,
+    }));
+}
+
+function checkQuests(){
+    let anyNew=false;
+    activeQuests.forEach(q=>{
+        if(!q.completed&&q.goal()){q.completed=true;anyNew=true;}
+    });
+    if(anyNew){
+        updateQuestUI();
+        if(getEl('quest-notif'))getEl('quest-notif').style.display='block';
+    }
+}
+
+function claimQuestReward(q){
+    if(!q.completed||q.claimed)return;
+    q.claimed=true;
+    completedQuestIds.push(q.id);
+    const amt=q.reward.amount();
+    if(q.reward.type==='energy'){energy+=amt;totalEnergy+=amt;}
+    else if(q.reward.type==='starcore')starCores+=amt;
+    // Flash log
+    if(getEl('system-log'))getEl('system-log').textContent=`> Quest "${q.name}" abgeschlossen! +${q.reward.type==='energy'?formatNumbers(amt)+' Energie':amt+' Sternen-Kern'+(amt!==1?'e':'')}`;
+    // Check if all current quests done → refresh
+    if(activeQuests.every(q2=>q2.claimed)){
+        setTimeout(()=>{generateDailyQuests();updateQuestUI();},1500);
+    }
+    updateQuestUI(); updateDisplay(); updateDisplayExtras(); saveGame();
+}
+
+function updateQuestUI(){
+    const c=getEl('quest-list'); if(!c)return;
+    c.innerHTML='';
+    // Hide notification dot if all visible
+    const anyDone=activeQuests.some(q=>q.completed&&!q.claimed);
+    if(getEl('quest-notif'))getEl('quest-notif').style.display=anyDone?'block':'none';
+
+    activeQuests.forEach(q=>{
+        const card=document.createElement('div'); card.className='quest-card'+(q.completed?' quest-done':'')+(q.claimed?' quest-claimed':'');
+        const col=QUEST_CAT_COLS[q.cat]||'#94a3b8';
+        const rwdStr=q.reward.type==='energy'?`+${formatNumbers(q.reward.amount())} Energie`:`+${q.reward.amount()} Sternen-Kern${q.reward.amount()!==1?'e':''}`;
+        card.innerHTML=`
+            <div class="quest-icon">${q.icon}</div>
+            <div class="quest-info">
+                <div class="quest-name" style="color:${col}">${q.name}</div>
+                <div class="quest-desc">${q.desc}</div>
+                <div class="quest-reward">🎁 ${rwdStr}</div>
+            </div>
+            <button class="quest-claim-btn" ${!q.completed||q.claimed?'disabled':''} onclick="claimQuestReward(window._quests[${activeQuests.indexOf(q)}])">
+                ${q.claimed?'✅':q.completed?'ABHOLEN!':'...'}
+            </button>`;
+        c.appendChild(card);
+    });
+    // expose for onclick
+    window._quests=activeQuests;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// OFFLINE PROGRESS
+// ══════════════════════════════════════════════════════════════════
+const MAX_OFFLINE_HOURS=12;
+
+function calcOfflineGain(secondsAway){
+    const capped=Math.min(secondsAway, MAX_OFFLINE_HOURS*3600);
+    return eps*capped; // full EPS rate, capped at 12h
+}
+
+function showOfflineModal(secondsAway, gained){
+    const h=Math.floor(secondsAway/3600), m=Math.floor((secondsAway%3600)/60), s=secondsAway%60;
+    const timeStr=h>0?`${h}h ${m}m`:m>0?`${m}m ${s}s`:`${s}s`;
+    const modal=document.createElement('div');
+    modal.id='offline-modal';
+    modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML=`<div style="background:#0a0f1e;border:1px solid rgba(0,240,255,0.3);border-radius:16px;padding:28px 32px;max-width:380px;text-align:center;font-family:Orbitron,sans-serif;">
+        <div style="font-size:2rem;margin-bottom:8px;">🌙</div>
+        <div style="font-size:1rem;font-weight:900;color:#00f0ff;margin-bottom:6px;">WILLKOMMEN ZURÜCK!</div>
+        <div style="font-size:.75rem;color:#94a3b8;margin-bottom:14px;">Du warst <b style="color:#e2e8f0">${timeStr}</b> weg.</div>
+        <div style="background:rgba(0,240,255,0.06);border:1px solid rgba(0,240,255,0.2);border-radius:10px;padding:12px;margin-bottom:16px;">
+            <div style="font-size:.7rem;color:#64748b;margin-bottom:4px;">OFFLINE-ERTRAG</div>
+            <div style="font-size:1.4rem;font-weight:900;color:#ffb703;">+${formatNumbers(gained)}</div>
+            <div style="font-size:.65rem;color:#64748b;">Energie (${MAX_OFFLINE_HOURS}h max)</div>
+        </div>
+        <button onclick="document.getElementById('offline-modal').remove()" style="font-family:Orbitron,sans-serif;font-weight:700;font-size:.75rem;padding:10px 24px;border-radius:8px;border:1px solid #00f0ff;background:rgba(0,240,255,0.1);color:#00f0ff;cursor:pointer;">EINSAMMELN ✨</button>
+    </div>`;
+    document.body.appendChild(modal);
+}
+
+function processOfflineProgress(){
+    if(offlinePopupShown)return;
+    offlinePopupShown=true;
+    if(!lastSaveTimestamp||eps<=0)return;
+    const secondsAway=Math.floor((Date.now()-lastSaveTimestamp)/1000);
+    if(secondsAway<30)return; // less than 30s → skip
+    const gained=calcOfflineGain(secondsAway);
+    if(gained<=0)return;
+    energy+=gained; totalEnergy+=gained;
+    updateDisplay(); updateDisplayExtras();
+    showOfflineModal(secondsAway, gained);
+}
+
 function saveGame(){
-    try{localStorage.setItem('cosmic_v4',JSON.stringify({energy,starCores,purchasedStars,bannerCosts,inventory,rebirthCount,totalClicks,totalEnergy,totalRolls,unlockedAch,equippedPlanetsIds:equippedPlanets.map(p=>p?p.instanceId:null),buildingsAmounts:buildings.map(b=>b.amount),purchasedTechsIds:techs.filter(t=>t.purchased).map(t=>t.id)}));}catch(e){}
+    totalPlayTime+=Math.floor((Date.now()-sessionStartTime)/1000);
+    sessionStartTime=Date.now();
+    lastSaveTimestamp=Date.now();
+    try{localStorage.setItem('cosmic_v6',JSON.stringify({
+        energy,starCores,purchasedStars,bannerCosts,bannerCostsBuilding,activeGachaMode,
+        inventory,rebirthCount,totalClicks,totalEnergy,totalRolls,unlockedAch,totalPlayTime,
+        lastSaveTimestamp,completedQuestIds,
+        equippedPlanetsIds:equippedPlanets.map(p=>p?p.instanceId:null),
+        buildingsAmounts:buildings.map(b=>b.amount),
+        purchasedTechsIds:techs.filter(t=>t.purchased).map(t=>t.id)
+    }));}catch(e){console.warn('Save failed',e);}
 }
 function loadGame(){
-    const sd=localStorage.getItem('cosmic_v4'); if(!sd)return;
+    // Wipe ALL old incompatible saves first
+    ['cosmic_v4','cosmic_v5'].forEach(k=>localStorage.removeItem(k));
+    const sd=localStorage.getItem('cosmic_v6');
+    if(!sd)return;
     try{
-        const s=JSON.parse(sd); if(!s)return;
-        energy=typeof s.energy==='number'?s.energy:0;
-        starCores=typeof s.starCores==='number'?s.starCores:0;
-        rebirthCount=typeof s.rebirthCount==='number'?s.rebirthCount:0;
-        totalClicks=typeof s.totalClicks==='number'?s.totalClicks:0;
-        totalEnergy=typeof s.totalEnergy==='number'?s.totalEnergy:0;
-        totalRolls=typeof s.totalRolls==='number'?s.totalRolls:0;
-        purchasedStars=Array.isArray(s.purchasedStars)?s.purchasedStars.filter(x=>typeof x==='string'):[];
-        unlockedAch=Array.isArray(s.unlockedAch)?s.unlockedAch:[];
-        unlockedAch.forEach(id=>{const a=ACHIEVEMENTS.find(x=>x.id===id);if(a)a.unlocked=true;});
-        if(s.bannerCosts&&typeof s.bannerCosts==='object')Object.keys(s.bannerCosts).forEach(k=>{if(bannerCosts[k]!==undefined)bannerCosts[k]=s.bannerCosts[k];});
-        inventory=Array.isArray(s.inventory)?s.inventory:[];
-        if(Array.isArray(s.buildingsAmounts))s.buildingsAmounts.forEach((a,i)=>{if(buildings[i]&&typeof a==='number'){buildings[i].amount=a;buildings[i].cost=Math.round(buildingsData[i].baseCost*Math.pow(1.48,a));}});
-        if(Array.isArray(s.purchasedTechsIds))techs.forEach(t=>{t.purchased=s.purchasedTechsIds.includes(t.id);});
-        if(Array.isArray(s.equippedPlanetsIds))s.equippedPlanetsIds.forEach((id,i)=>{if(id&&i<equippedPlanets.length){const f=inventory.find(p=>p&&p.instanceId===id);equippedPlanets[i]=f||null;}});
+        const s=JSON.parse(sd);
+        if(!s||typeof s!=='object')throw new Error('bad save');
+        // Only load simple numeric/string fields — never trust arrays blindly
+        if(typeof s.energy==='number'&&isFinite(s.energy))energy=s.energy;
+        if(typeof s.starCores==='number'&&isFinite(s.starCores))starCores=s.starCores;
+        if(typeof s.rebirthCount==='number')rebirthCount=s.rebirthCount;
+        if(typeof s.totalClicks==='number')totalClicks=s.totalClicks;
+        if(typeof s.totalEnergy==='number')totalEnergy=s.totalEnergy;
+        if(typeof s.totalRolls==='number')totalRolls=s.totalRolls;
+        if(typeof s.totalPlayTime==='number')totalPlayTime=s.totalPlayTime;
+        if(typeof s.lastSaveTimestamp==='number')lastSaveTimestamp=s.lastSaveTimestamp;
+        if(Array.isArray(s.completedQuestIds))completedQuestIds=s.completedQuestIds.filter(x=>typeof x==='string');
+        if(s.activeGachaMode==='click'||s.activeGachaMode==='building')activeGachaMode=s.activeGachaMode;
+        if(Array.isArray(s.purchasedStars))purchasedStars=s.purchasedStars.filter(x=>typeof x==='string');
+        if(Array.isArray(s.unlockedAch)){
+            unlockedAch=s.unlockedAch.filter(x=>typeof x==='string');
+            unlockedAch.forEach(id=>{const a=ACHIEVEMENTS.find(x=>x.id===id);if(a)a.unlocked=true;});
+        }
+        if(s.bannerCosts&&typeof s.bannerCosts==='object')
+            [1,2,3,4,5,6].forEach(k=>{if(typeof s.bannerCosts[k]==='number')bannerCosts[k]=s.bannerCosts[k];});
+        if(s.bannerCostsBuilding&&typeof s.bannerCostsBuilding==='object')
+            [1,2,3,4,5,6].forEach(k=>{if(typeof s.bannerCostsBuilding[k]==='number')bannerCostsBuilding[k]=s.bannerCostsBuilding[k];});
+        if(Array.isArray(s.inventory))
+            inventory=s.inventory.filter(p=>p&&typeof p==='object'&&p.id&&p.multiplier)
+                .map(p=>({...p,gachaType:p.gachaType==='building'?'building':'click',isFusion:!!p.isFusion,fusionId:p.fusionId||null}));
+        if(Array.isArray(s.buildingsAmounts))
+            s.buildingsAmounts.forEach((a,i)=>{if(buildings[i]&&typeof a==='number'&&a>=0){buildings[i].amount=a;buildings[i].cost=Math.round(buildingsData[i].baseCost*Math.pow(1.48,a));}});
+        if(Array.isArray(s.purchasedTechsIds))
+            techs.forEach(t=>{t.purchased=Array.isArray(s.purchasedTechsIds)&&s.purchasedTechsIds.includes(t.id);});
+        if(Array.isArray(s.equippedPlanetsIds))
+            s.equippedPlanetsIds.forEach((id,i)=>{
+                if(id&&i<6){const f=inventory.find(p=>p&&p.instanceId===id);if(f)equippedPlanets[i]=f;}
+            });
         recalculateEps();
-    }catch(e){localStorage.removeItem('cosmic_v4');}
+    }catch(e){
+        console.warn('Savefile corrupt, resetting:',e);
+        localStorage.removeItem('cosmic_v6');
+    }
 }
-function hardReset(){localStorage.removeItem('cosmic_v4');location.reload();}
+function hardReset(){
+    if(confirm('WIRKLICH ALLES LÖSCHEN?\n\nDies löscht deinen gesamten Spielfortschritt unwiderruflich!')){
+        ['cosmic_v6','cosmic_v5','cosmic_v4'].forEach(k=>localStorage.removeItem(k));
+        location.reload();
+    }
+}
 
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 // INIT
-// ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
     initMainStarfield();
-    loadGame(); buildGameUI(); switchBanner(1); updateDisplay();
+    loadGame(); buildGameUI(); switchBanner(1); updateDisplay(); updateDisplayExtras();
 
-    // Planet click
+    // Generate quests (after load so completedQuestIds is known)
+    generateDailyQuests(); updateQuestUI();
+
+    // Offline progress (after load so eps and lastSaveTimestamp are set)
+    setTimeout(()=>processOfflineProgress(), 500);
+
+    // Quest modal
+    if(getEl('open-quest-btn'))getEl('open-quest-btn').onclick=()=>{
+        if(getEl('quest-screen'))getEl('quest-screen').style.display='block';
+        updateQuestUI();
+    };
+    if(getEl('close-quest-btn'))getEl('close-quest-btn').onclick=()=>{if(getEl('quest-screen'))getEl('quest-screen').style.display='none';};
+
+    // Planet click — with anti-autoclicker protection
     const pb=getEl('planet-btn');
-    if(pb){pb.addEventListener('click',(e)=>{const cp=calculateTotalClickPower();energy+=cp;totalClicks++;totalEnergy+=cp;createClickParticle(e);updateDisplay();if(totalClicks%500===0)checkAchievements();});}
+    if(pb){
+        // Track click timing for cheat detection
+        let _clickTimes=[];
+        let _blockedUntil=0;
+        let _warnCount=0;
 
-    // Modal buttons
-    if(getEl('open-rebirth-btn'))getEl('open-rebirth-btn').onclick=()=>{if(getEl('rebirth-screen'))getEl('rebirth-screen').style.display='block';drawConstellation();};
+        pb.addEventListener('click',(e)=>{
+            const now=Date.now();
+
+            // If currently blocked, ignore
+            if(now<_blockedUntil){
+                if(getEl('system-log'))getEl('system-log').textContent='> ⚠️ Anomalie erkannt. Reaktor kühlt ab...';
+                return;
+            }
+
+            // Record click
+            _clickTimes.push(now);
+            // Keep only last 20 clicks
+            if(_clickTimes.length>20)_clickTimes.shift();
+
+            // Check 1: Too many clicks too fast (>15 per second = suspicious)
+            const windowMs=1000;
+            const recent=_clickTimes.filter(t=>now-t<windowMs);
+            if(recent.length>15){
+                _warnCount++;
+                _blockedUntil=now+(_warnCount*3000); // block longer each time
+                if(getEl('system-log'))getEl('system-log').textContent=`> ⚠️ Reaktor-Überhitzung! Abkühlung: ${_warnCount*3}s`;
+                return;
+            }
+
+            // Check 2: Suspiciously regular interval (bot-like precision)
+            if(_clickTimes.length>=8){
+                const intervals=[];
+                for(let i=1;i<_clickTimes.length;i++)intervals.push(_clickTimes[i]-_clickTimes[i-1]);
+                const avg=intervals.reduce((a,b)=>a+b,0)/intervals.length;
+                const variance=intervals.reduce((s,v)=>s+Math.pow(v-avg,2),0)/intervals.length;
+                // Real humans have variance >500ms², bots are often <100ms²
+                if(avg<80&&variance<200){
+                    _warnCount++;
+                    _blockedUntil=now+(_warnCount*5000);
+                    if(getEl('system-log'))getEl('system-log').textContent=`> ⚠️ Mechanisches Muster erkannt! Cooldown: ${_warnCount*5}s`;
+                    return;
+                }
+            }
+
+            // Check 3: Click must come from real pointer event (isTrusted)
+            if(!e.isTrusted){
+                if(getEl('system-log'))getEl('system-log').textContent='> ⚠️ Simulierter Klick blockiert.';
+                return;
+            }
+
+            // Legit click — process normally
+            const cp=calculateTotalClickPower();
+            energy+=cp; totalClicks++; totalEnergy+=cp;
+            createClickParticle(e); updateDisplay(); updateDisplayExtras();
+            if(totalClicks%200===0)checkAchievements();
+            checkQuests();
+        });
+    }
+
+    // Stats screen
+    if(getEl('open-stats-btn'))getEl('open-stats-btn').onclick=()=>{
+        if(getEl('stats-screen'))getEl('stats-screen').style.display='block';
+        updateStatsScreen();
+    };
+    if(getEl('close-stats-btn'))getEl('close-stats-btn').onclick=()=>{if(getEl('stats-screen'))getEl('stats-screen').style.display='none';};
+    if(getEl('hard-reset-btn'))getEl('hard-reset-btn').onclick=hardReset;
+
+    // Rebirth
+    if(getEl('open-rebirth-btn'))getEl('open-rebirth-btn').onclick=()=>{
+        if(getEl('rebirth-screen'))getEl('rebirth-screen').style.display='block';
+        drawConstellation(); updateDisplayExtras();
+    };
     if(getEl('close-rebirth-btn'))getEl('close-rebirth-btn').onclick=()=>{if(getEl('rebirth-screen'))getEl('rebirth-screen').style.display='none';};
-    if(getEl('open-gacha-btn'))getEl('open-gacha-btn').onclick=()=>{if(getEl('gacha-screen'))getEl('gacha-screen').style.display='block';updateInventoryUI();updateEquipUI();};
+    if(getEl('trigger-rebirth-btn'))getEl('trigger-rebirth-btn').onclick=()=>{
+        if(calculatePendingCores()<=0){
+            if(getEl('system-log'))getEl('system-log').textContent='> Nicht genug Energie für Rebirth!';
+            return;
+        }
+        openKeeperScreen();
+    };
+    if(getEl('keeper-confirm-btn'))getEl('keeper-confirm-btn').onclick=confirmRebirth;
+
+    // Gacha
+    if(getEl('open-gacha-btn'))getEl('open-gacha-btn').onclick=()=>{
+        if(getEl('gacha-screen'))getEl('gacha-screen').style.display='block';
+        updateInventoryUI(); updateEquipUI(); updateDisplayExtras();
+    };
     if(getEl('close-gacha-btn'))getEl('close-gacha-btn').onclick=()=>{if(getEl('gacha-screen'))getEl('gacha-screen').style.display='none';};
     if(getEl('roll-gacha-btn'))getEl('roll-gacha-btn').onclick=rollPlanet;
-    if(getEl('open-ach-btn'))getEl('open-ach-btn').onclick=()=>{if(getEl('ach-screen'))getEl('ach-screen').style.display='block';drawAchievementConstellation();};
+
+    // Sort button: cycle through sort modes
+    if(getEl('sort-inv-btn'))getEl('sort-inv-btn').onclick=()=>{
+        const modes=['rarity','mult','name'];
+        inventorySort=modes[(modes.indexOf(inventorySort)+1)%modes.length];
+        updateInventoryUI();
+    };
+    // Fusion mode toggle
+    if(getEl('fusion-mode-btn'))getEl('fusion-mode-btn').onclick=toggleFusionMode;
+
+    // Gacha mode tabs
+    document.querySelectorAll('.gacha-mode-tab').forEach(tab=>{
+        tab.onclick=()=>{
+            activeGachaMode=tab.getAttribute('data-mode');
+            document.querySelectorAll('.gacha-mode-tab').forEach(t=>t.classList.remove('mode-active'));
+            tab.classList.add('mode-active');
+            updateInventoryUI(); updateEquipUI(); updateDisplayExtras();
+        };
+    });
+
+    // Achievements
+    if(getEl('open-ach-btn'))getEl('open-ach-btn').onclick=()=>{
+        if(getEl('ach-screen'))getEl('ach-screen').style.display='block';
+        drawAchievementConstellation();
+    };
     if(getEl('close-ach-btn'))getEl('close-ach-btn').onclick=()=>{if(getEl('ach-screen'))getEl('ach-screen').style.display='none';};
 
     // Banner tabs
-    document.querySelectorAll('.banner-tab').forEach(tab=>{tab.onclick=(e)=>switchBanner(e.target.getAttribute('data-banner'));});
+    document.querySelectorAll('.banner-tab').forEach(tab=>{
+        tab.onclick=e=>switchBanner(e.target.getAttribute('data-banner'));
+    });
 
-    // Rebirth
-    if(getEl('trigger-rebirth-btn')){getEl('trigger-rebirth-btn').onclick=()=>{const gain=calculatePendingCores();if(gain>0){starCores+=gain;energy=0;eps=0;rebirthCount++;buildings.forEach((b,i)=>{b.amount=0;b.cost=buildingsData[i].baseCost;});techs.forEach(t=>t.purchased=false);inventory=[];equippedPlanets=[null,null,null];saveGame();updateInventoryUI();updateEquipUI();buildGameUI();if(getEl('rebirth-screen'))getEl('rebirth-screen').style.display='none';updateDisplay();checkAchievements();}};}
+    // Star upgrades (rebirth constellation)
+    document.addEventListener('click',e=>{
+        if(e.target.classList.contains('star-node')){
+            const id=e.target.getAttribute('data-id');
+            const su=starUpgrades[id]; if(!su)return;
+            if(purchasedStars.includes(id))return;
+            if(su.parentId&&!purchasedStars.includes(su.parentId))return;
+            if(su.requireRebirth&&rebirthCount<su.requireRebirth)return;
+            if(starCores>=su.cost){
+                starCores-=su.cost; purchasedStars.push(id);
+                recalculateEps(); updateDisplay(); updateDisplayExtras();
+                drawConstellation(); saveGame();
+            }
+        }
+    });
 
-    // Game loop
+    // Tooltip for stars
+    document.addEventListener('mouseover',e=>{
+        if(e.target.classList.contains('star-node')){
+            const id=e.target.getAttribute('data-id'); const su=starUpgrades[id]; if(!su)return;
+            const locked=su.requireRebirth&&rebirthCount<su.requireRebirth;
+            const box=getEl('star-info-box');
+            if(box){const t=getEl('star-info-text');
+                if(t)t.innerHTML=`<b style="color:${su.col}">${su.name}</b> — ${su.desc}<br>Kosten: ${su.cost} Kern${su.cost!==1?'e':''}`+(locked?` <span style="color:#ef4444">(Braucht ${su.requireRebirth} Rebirths)</span>`:'')+(purchasedStars.includes(id)?` <span style="color:#00ff88">✅ Gekauft</span>`:'');
+            }
+        }
+    });
+    document.addEventListener('mouseover',e=>{
+        if(e.target.classList.contains('ach-star')){
+            const id=e.target.getAttribute('data-id');
+            const ach=ACHIEVEMENTS.find(a=>a.id===id); if(!ach)return;
+            const box=getEl('ach-info-box');
+            if(box){const t=getEl('ach-info-text');
+                if(t)t.innerHTML=`<b style="color:${ACH_CATS[ach.cat]?.col||'#fff'}">${ach.name}</b><br>${ach.desc}`+(ach.unlocked?` <span style="color:#00ff88">✅</span>`:'');
+            }
+        }
+    });
+
+    // Game loop (1s EPS tick)
     setInterval(()=>{
-        if(eps>0){energy+=eps;totalEnergy+=eps;}
-        saveGame(); updateDisplay(); checkAchievements();
+        if(eps>0){energy+=eps; totalEnergy+=eps;}
+        updateDisplay(); updateDisplayExtras();
     },1000);
 
+    // Save + achievement + quest check (every 4s)
+    setInterval(()=>{
+        saveGame(); checkAchievements(); checkQuests();
+    },4000);
 });
