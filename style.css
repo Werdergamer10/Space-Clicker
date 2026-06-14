@@ -143,6 +143,58 @@ body{background:#020208;background-image:radial-gradient(ellipse 80% 50% at 20% 
 @keyframes secretShimmer{0%,100%{filter:brightness(1) hue-rotate(0deg);}50%{filter:brightness(1.3) hue-rotate(30deg);}}
 @keyframes mythicGlow{0%,100%{filter:brightness(1) drop-shadow(0 0 3px #ff0055);}50%{filter:brightness(1.2) drop-shadow(0 0 8px #ff0055);}}
 
+/* GACHA MODE TABS */
+.gacha-mode-tabs{display:flex;gap:8px;margin-bottom:4px;}
+.gacha-mode-tab{font-family:'Orbitron',sans-serif;font-weight:700;font-size:.75rem;padding:8px 18px;border-radius:8px;cursor:pointer;border:1.5px solid rgba(255,183,3,.35);background:rgba(255,183,3,.05);color:#64748b;transition:all .2s;}
+.gacha-mode-tab:hover{background:rgba(255,183,3,.12);color:#e2e8f0;}
+.gacha-mode-tab.mode-active[data-mode="click"]{background:linear-gradient(135deg,#00b4d8,#00f0ff);color:#000;border-color:#00f0ff;box-shadow:0 0 14px rgba(0,240,255,.45);}
+.gacha-mode-tab.mode-active[data-mode="building"]{background:linear-gradient(135deg,#ff9500,#ffb703);color:#000;border-color:#ffb703;box-shadow:0 0 14px rgba(255,183,3,.45);}
+
 /* ACHIEVEMENT TOAST */
 .ach-toast{position:fixed;bottom:-80px;right:16px;background:rgba(5,10,25,.96);border:1px solid rgba(0,240,255,.2);border-radius:10px;padding:10px 14px;z-index:999998;display:flex;align-items:center;gap:10px;font-family:'Roboto',sans-serif;min-width:240px;max-width:320px;transition:bottom .4s cubic-bezier(.175,.885,.32,1.275),opacity .4s;opacity:0;box-shadow:0 4px 20px rgba(0,0,0,.8);}
 .ach-toast-show{bottom:16px;opacity:1;}
+
+/* STATS SCREEN */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;padding:4px 0;}
+.stat-card{background:rgba(0,240,255,0.04);border:1px solid rgba(0,240,255,0.15);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;}
+.stat-card-label{font-family:'Orbitron',sans-serif;font-size:.62rem;color:#64748b;text-transform:uppercase;letter-spacing:1px;}
+.stat-card-value{font-family:'Orbitron',sans-serif;font-size:1.1rem;font-weight:900;color:#e2e8f0;}
+.btn-stats{background:linear-gradient(135deg,rgba(99,102,241,0.18),rgba(99,102,241,0.06));border-color:rgba(99,102,241,0.5);color:#a5b4fc;}
+.btn-stats:hover{background:linear-gradient(135deg,rgba(99,102,241,0.35),rgba(99,102,241,0.15));box-shadow:0 0 14px rgba(99,102,241,0.4);}
+
+/* KEEPER MODAL */
+.keeper-card{width:60px;height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.15);cursor:pointer;transition:all .2s;padding:4px;font-size:.5rem;text-align:center;background:rgba(0,0,0,0.3);}
+.keeper-card:hover{transform:scale(1.08);border-color:rgba(255,255,255,0.4);}
+.keeper-card.keeper-selected{border-color:#00ff88!important;box-shadow:0 0 14px #00ff8888;background:rgba(0,255,136,0.1);}
+.keeper-card.keeper-disabled{opacity:0.35;pointer-events:none;}
+
+/* INVENTORY CONTROL BUTTONS */
+.inv-ctrl-btn{font-family:'Orbitron',sans-serif;font-size:.58rem;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;border:1px solid rgba(0,240,255,0.3);background:rgba(0,240,255,0.06);color:#94a3b8;transition:all .2s;}
+.inv-ctrl-btn:hover{background:rgba(0,240,255,0.15);color:#e2e8f0;border-color:rgba(0,240,255,0.5);}
+.inv-ctrl-btn.active{background:rgba(255,183,3,0.2);color:#ffb703;border-color:#ffb703;box-shadow:0 0 10px rgba(255,183,3,0.3);}
+
+/* FUSION SELECTION HIGHLIGHT */
+.planet-card.fusion-selected{outline:2px solid #ffb703;box-shadow:0 0 14px #ffb70388!important;transform:scale(1.08);}
+.planet-card.fusion-candidate{outline:1px dashed #ffb70366;opacity:0.7;}
+.planet-card.fusion-ineligible{opacity:0.25;pointer-events:none;}
+
+/* FUSION RESULT FLASH */
+@keyframes fusionFlash{0%{opacity:0;transform:scale(0.5);}60%{opacity:1;transform:scale(1.15);}100%{transform:scale(1);}}
+.fusion-new{animation:fusionFlash .5s ease-out;}
+
+/* QUEST NAV BUTTON */
+.btn-quest{background:linear-gradient(135deg,rgba(255,183,3,0.18),rgba(255,183,3,0.06));border-color:rgba(255,183,3,0.5);color:#fde68a;}
+.btn-quest:hover{background:linear-gradient(135deg,rgba(255,183,3,0.35),rgba(255,183,3,0.15));box-shadow:0 0 14px rgba(255,183,3,0.4);}
+
+/* QUEST CARDS */
+.quest-card{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 12px;margin-bottom:8px;transition:all .2s;}
+.quest-card.quest-done{border-color:rgba(0,255,136,0.4);background:rgba(0,255,136,0.05);}
+.quest-card.quest-claimed{opacity:0.4;}
+.quest-icon{font-size:1.4rem;flex-shrink:0;width:30px;text-align:center;}
+.quest-info{flex:1;min-width:0;}
+.quest-name{font-family:'Orbitron',sans-serif;font-size:.7rem;font-weight:700;margin-bottom:2px;}
+.quest-desc{font-size:.65rem;color:#64748b;margin-bottom:2px;}
+.quest-reward{font-size:.62rem;color:#ffb703;}
+.quest-claim-btn{font-family:'Orbitron',sans-serif;font-size:.6rem;font-weight:700;padding:6px 10px;border-radius:7px;cursor:pointer;border:1px solid rgba(0,255,136,0.4);background:rgba(0,255,136,0.08);color:#00ff88;white-space:nowrap;transition:all .2s;flex-shrink:0;}
+.quest-claim-btn:hover:not(:disabled){background:rgba(0,255,136,0.2);box-shadow:0 0 10px rgba(0,255,136,0.3);}
+.quest-claim-btn:disabled{opacity:0.35;cursor:default;}
